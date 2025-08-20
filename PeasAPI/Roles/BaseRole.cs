@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using BepInEx.IL2CPP;
+using BepInEx.Unity.IL2CPP;
 using PeasAPI.Managers;
 using PeasAPI.Options;
 using UnityEngine;
@@ -60,12 +60,11 @@ namespace PeasAPI.Roles
         /// <summary>
         /// How many player should get the Role
         /// </summary>
+        public virtual int Chance { get; set; } = 0;
+
         public virtual int Count { get; set; } = 0;
-        
         public virtual int MaxCount { get; set; } = 15;
         
-        public virtual int Chance { get; set; } = 100;
-
         public virtual bool CreateRoleOption { get; set; } = true;
 
         public CustomRoleOption Option;
@@ -76,7 +75,7 @@ namespace PeasAPI.Roles
 
         public virtual Type[] GameModeWhitelist { get; } = Array.Empty<Type>();
 
-        public virtual float KillDistance { get; set; } = GameOptionsData.KillDistances[Mathf.Clamp(PlayerControl.GameOptions.KillDistance, 0, 2)];
+        public virtual float KillDistance { get; set; } = Mathf.Clamp(GameManager.Instance?.LogicOptions?.GetKillDistance() ?? 1.8f, 0, 2);
 
         /// <summary>
         /// If a member of the role should be able to kill that player / in general
@@ -118,7 +117,7 @@ namespace PeasAPI.Roles
             
             switch (this.Visibility)
             {
-                case Visibility.Role: return perspective.IsRole(this);
+                case Visibility.Role: return perspective.IsCustomRole(this);
                 case Visibility.Impostor: return perspective.Data.Role.IsImpostor;
                 case Visibility.Crewmate: return true;
                 case Visibility.NoOne: return false;
@@ -127,38 +126,6 @@ namespace PeasAPI.Roles
             }
         }
         
-        /// <summary>
-        /// This method calculates the nearest player to kill for a member of this role
-        /// </summary>
-        public virtual PlayerControl FindClosestTarget(PlayerControl from, bool protecting)
-        {
-            PlayerControl result = null;
-            float num = KillDistance;
-            if (!ShipStatus.Instance)
-            {
-                return null;
-            }
-            Vector2 truePosition = from.GetTruePosition();
-            foreach (var playerInfo in GameData.Instance.AllPlayers)
-            {
-                if (!playerInfo.Disconnected && playerInfo.PlayerId != from.PlayerId && !playerInfo.IsDead && (from.GetRole().CanKill(playerInfo.Object) || protecting) && !playerInfo.Object.inVent)
-                {
-                    PlayerControl @object = playerInfo.Object;
-                    if (@object && @object.Collider.enabled)
-                    {
-                        Vector2 vector = @object.GetTruePosition() - truePosition;
-                        float magnitude = vector.magnitude;
-                        if (magnitude <= num && !PhysicsHelpers.AnyNonTriggersBetween(truePosition, vector.normalized, magnitude, Constants.ShipAndObjectsMask))
-                        {
-                            result = @object;
-                            num = magnitude;
-                        }
-                    }
-                }
-            }
-            return result;
-        }
-
         public virtual bool ShouldGameEnd(GameOverReason reason) => true;
         
         /// <summary>
@@ -184,10 +151,10 @@ namespace PeasAPI.Roles
                     continue;
                 if (PlayerControl.LocalPlayer == null)
                     continue;
-                if (playerControl.IsRole(this) && _IsRoleVisible(playerControl, PlayerControl.LocalPlayer))
+                if (playerControl.IsCustomRole(this) && _IsRoleVisible(playerControl, PlayerControl.LocalPlayer))
                 {
-                    playerControl.nameText.color = this.Color;
-                    playerControl.nameText.text = $"{player.GetPlayer().name}\n{Name}";
+                    playerControl.cosmetics.nameText.color = this.Color;
+                    playerControl.cosmetics.nameText.text = $"{player.GetPlayer().name}\n{Name}";
                 }
             }
 
@@ -213,10 +180,10 @@ namespace PeasAPI.Roles
                     continue;
                 if (PlayerControl.LocalPlayer == null)
                     continue;
-                if (playerControl.IsRole(this) && _IsRoleVisible(playerControl, PlayerControl.LocalPlayer))
+                if (playerControl.IsCustomRole(this) && _IsRoleVisible(playerControl, PlayerControl.LocalPlayer))
                 {
-                    playerControl.nameText.color = this.Color;
-                    playerControl.nameText.text = $"{player.GetPlayer().name}\n{Name}";
+                    playerControl.cosmetics.nameText.color = this.Color;
+                    playerControl.cosmetics.nameText.text = $"{player.GetPlayer().name}\n{Name}";
                 }
             }
 
@@ -227,7 +194,7 @@ namespace PeasAPI.Roles
                     continue;
                 if (PlayerControl.LocalPlayer == null)
                     continue;
-                if (player.IsRole(this) && _IsRoleVisible(player, PlayerControl.LocalPlayer))
+                if (player.IsCustomRole(this) && _IsRoleVisible(player, PlayerControl.LocalPlayer))
                 {
                     pstate.NameText.color = Color;
                     pstate.NameText.text = $"{player.name}\n{Name}";
@@ -272,16 +239,6 @@ namespace PeasAPI.Roles
         
         public virtual void OnTaskComplete(PlayerControl player, PlayerTask task)
         {
-        }
-
-        public int GetCount()
-        {
-            return Option?.Count ?? Count;
-        }
-        
-        public int GetChance()
-        {
-            return Option?.Chance ?? Chance;
         }
         
         public BaseRole(BasePlugin plugin)

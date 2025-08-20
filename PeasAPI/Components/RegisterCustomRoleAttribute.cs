@@ -1,9 +1,8 @@
 ﻿using System;
 using System.Reflection;
-using BepInEx.IL2CPP;
+using BepInEx.Unity.IL2CPP;
 using HarmonyLib;
 using PeasAPI.Roles;
-using Reactor;
 
 namespace PeasAPI.Components
 {
@@ -20,18 +19,19 @@ namespace PeasAPI.Components
         {
             foreach (var type in assembly.GetTypes())
             {
-                var attribute = type.GetCustomAttribute<RegisterCustomRoleAttribute>(); 
+                var attribute = type.GetCustomAttribute<RegisterCustomRoleAttribute>();
 
                 if (attribute != null)
                 {
                     if (!type.IsSubclassOf(typeof(BaseRole)))
                     {
-                        throw new InvalidOperationException($"Type {type.FullDescription()} must extend {nameof(BaseRole)}.");
+                        throw new InvalidOperationException(
+                            $"Type {type.FullDescription()} must extend {nameof(BaseRole)}.");
                     }
-                    
+
                     if (PeasAPI.Logging)
                         PeasAPI.Logger.LogInfo($"Registered role {type.Name} from {type.Assembly.GetName().Name}");
-                    
+
                     Activator.CreateInstance(type, plugin);
                 }
             }
@@ -39,7 +39,7 @@ namespace PeasAPI.Components
 
         public static void Load()
         {
-            ChainloaderHooks.PluginLoad += plugin => Register(plugin.GetType().Assembly, plugin);
+            IL2CPPChainloader.Instance.PluginLoad += (pluginInfo, assembly, plugin) => Register(assembly, plugin);
         }
     }
 }

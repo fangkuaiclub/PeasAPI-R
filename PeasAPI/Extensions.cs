@@ -1,14 +1,11 @@
 ﻿using System.Linq;
-using HarmonyLib;
+using AmongUs.GameOptions;
 using PeasAPI.CustomRpc;
 using PeasAPI.Options;
 using PeasAPI.Roles;
-using Reactor.Extensions;
-using Reactor.Networking;
-using Reactor.Networking.MethodRpc;
-using UnhollowerBaseLib;
+using Reactor.Networking.Rpc;
+using Reactor.Utilities.Extensions;
 using UnityEngine;
-using Object = Il2CppSystem.Object;
 
 namespace PeasAPI
 {
@@ -23,9 +20,9 @@ namespace PeasAPI
         }
         
         /// <summary>
-        /// Gets a <see cref="GameData.PlayerInfo"/> from it's id
+        /// Gets a <see cref="NetworkedPlayerInfo"/> from it's id
         /// </summary>
-        public static GameData.PlayerInfo GetPlayerInfo(this byte id)
+        public static NetworkedPlayerInfo GetPlayerInfo(this byte id)
         {
             return GameData.Instance.GetPlayerById(id);
         }
@@ -39,12 +36,12 @@ namespace PeasAPI
         {
             if (active)
             {
-                player.MyRend.material.SetFloat("_Outline", 1f);
-                player.MyRend.material.SetColor("_OutlineColor", color);
+                player.cosmetics.currentBodySprite.BodySprite.material.SetFloat("_Outline", 1f);
+                player.cosmetics.currentBodySprite.BodySprite.material.SetColor("_OutlineColor", color);
                 return;
             }
             
-            player.MyRend.material.SetFloat("_Outline", 0f);
+            player.cosmetics.currentBodySprite.BodySprite.material.SetFloat("_Outline", 0f);
         }
         
         public static Color SetAlpha(this Color original, float alpha)
@@ -93,7 +90,7 @@ namespace PeasAPI
         /// <summary>
         /// Gets the role of a <see cref="PlayerControl"/>
         /// </summary>
-        public static BaseRole GetRole(this PlayerControl player)
+        public static BaseRole GetCustomRole(this PlayerControl player)
         {
             foreach (var _role in Roles.RoleManager.Roles)
             {
@@ -103,11 +100,19 @@ namespace PeasAPI
 
             return null;
         }
-        
+
+        public static bool IsCustomRole(this PlayerControl player)
+        {
+            if (player == null)
+                return false;
+
+            return GetCustomRole(player) != null;
+        }
+
         /// <summary>
-        /// Gets the role of a <see cref="GameData.PlayerInfo"/>
+        /// Gets the role of a <see cref="NetworkedPlayerInfo"/>
         /// </summary>
-        public static BaseRole GetRole(this GameData.PlayerInfo player)
+        public static BaseRole GetCustomRole(this NetworkedPlayerInfo player)
         {
             foreach (var _role in Roles.RoleManager.Roles)
             {
@@ -121,25 +126,25 @@ namespace PeasAPI
         /// <summary>
         /// Checks if a <see cref="PlayerControl"/> is a certain role
         /// </summary>
-        public static bool IsRole(this PlayerControl player, BaseRole role) => player.GetRole() == role;
+        public static bool IsCustomRole(this PlayerControl player, BaseRole role) => player.GetCustomRole() == role;
 
         #nullable enable
         /// <summary>
         /// Gets the role of a <see cref="PlayerControl"/>
         /// </summary>
-        public static T? GetRole<T>(this PlayerControl player) where T : BaseRole
-            => player.GetRole() as T;
+        public static T? GetCustomRole<T>(this PlayerControl player) where T : BaseRole
+            => player.GetCustomRole() as T;
 
         /// <summary>
         /// Checks if a <see cref="PlayerControl"/> is a certain role
         /// </summary>
-        public static bool IsRole<T>(this PlayerControl player) where T : BaseRole
-            => player.GetRole<T>() != null;
+        public static bool IsCustomRole<T>(this PlayerControl player) where T : BaseRole
+            => player.GetCustomRole<T>() != null;
 
         /// <summary>
         /// Sets the role of a <see cref="PlayerControl"/>
         /// </summary>
-        public static void SetRole(this PlayerControl player, BaseRole? role)
+        public static void SetCustomRole(this PlayerControl player, BaseRole? role)
         {
             var oldRole = Roles.RoleManager.Roles.Where(r => r.Members.Contains(player.PlayerId)).ToList();
             if (oldRole.Count != 0)
@@ -160,8 +165,8 @@ namespace PeasAPI
                 HudManager.Instance.KillButton.gameObject.SetActive(isImpostor && !isDead);
                 HudManager.Instance.ImpostorVentButton.gameObject.SetActive(isImpostor && !isDead);
                 
-                player.nameText.color = isImpostor ? Palette.ImpostorRed : Color.white;
-                player.nameText.text = player.name;
+                player.cosmetics.nameText.color = isImpostor ? Palette.ImpostorRed : Color.white;
+                player.cosmetics.nameText.text = player.name;
             }
         }
         
@@ -177,7 +182,7 @@ namespace PeasAPI
             HudManager.Instance.MapButton.gameObject.SetActive(true);
             HudManager.Instance.ReportButton.gameObject.SetActive(true);
             HudManager.Instance.UseButton.gameObject.SetActive(true);
-            PlayerControl.LocalPlayer.RemainingEmergencies = PlayerControl.GameOptions.NumEmergencyMeetings;
+            PlayerControl.LocalPlayer.RemainingEmergencies = GameOptionsManager.Instance.currentNormalGameOptions.NumEmergencyMeetings;
             RoleManager.Instance.SetRole(player, role);
             player.Data.Role.SpawnTaskHeader(player);
             if (!DestroyableSingleton<TutorialManager>.InstanceExists)
@@ -188,11 +193,11 @@ namespace PeasAPI
                     {
                         if (pc.Data.Role.TeamType == PlayerControl.LocalPlayer.Data.Role.TeamType)
                         {
-                            pc.nameText.color = pc.Data.Role.NameColor;
+                            pc.cosmetics.nameText.color = pc.Data.Role.NameColor;
                         }
                         else
                         {
-                            pc.nameText.color = Palette.White;
+                            pc.cosmetics.nameText.color = Palette.White;
                         }
                     });
                 }
@@ -213,13 +218,13 @@ namespace PeasAPI
         {
             Rpc<RpcSetRole>.Instance.Send(new RpcSetRole.Data(player, role));
 
-            player.SetRole(role);
+            player.SetCustomRole(role);
         }
 
         public static bool IsOnSameTeam(this PlayerControl player, PlayerControl otherPlayer)
         {
-            var role = player.GetRole();
-            var otherRole = otherPlayer.GetRole();
+            var role = player.GetCustomRole();
+            var otherRole = otherPlayer.GetCustomRole();
 
             if (role != null)
             {
@@ -285,45 +290,7 @@ namespace PeasAPI
         }
 
         #endregion Roles
-        
-        #region Options
-
-        public static bool IsCustom(this OptionBehaviour option)
-        {
-            foreach (var customOption in OptionManager.CustomOptions)
-            {
-                if (customOption.Option == option)
-                    return true;
-            }
-            
-            foreach (var customOption in OptionManager.CustomRoleOptions)
-            {
-                if (customOption.Option == option)
-                    return true;
-            }
-
-            return false;
-        }
-        
-        public static CustomOption? GetCustom(this OptionBehaviour option)
-        {
-            foreach (var customOption in OptionManager.CustomOptions)
-            {
-                if (customOption.Option == option)
-                    return customOption;
-            }
-            
-            foreach (var customOption in OptionManager.CustomRoleOptions)
-            {
-                if (customOption.Option == option)
-                    return customOption;
-            }
-
-            return null;
-        }
-        
-        #endregion Options
-        
+                
         #region Position
         public static Vector3 SetX(this Transform transform, float x)
         {

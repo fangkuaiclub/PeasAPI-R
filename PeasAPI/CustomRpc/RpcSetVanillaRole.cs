@@ -1,6 +1,7 @@
-﻿using Hazel;
-using Reactor;
-using Reactor.Networking;
+﻿using AmongUs.GameOptions;
+using Hazel;
+using Reactor.Networking.Attributes;
+using Reactor.Networking.Rpc;
 
 namespace PeasAPI.CustomRpc
 {

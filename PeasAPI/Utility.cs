@@ -2,7 +2,8 @@
 using System.IO;
 using System.Linq;
 using System.Reflection;
-using Reactor.Extensions;
+using Reactor.Utilities;
+using Reactor.Utilities.Extensions;
 using UnityEngine;
 
 namespace PeasAPI
@@ -11,7 +12,7 @@ namespace PeasAPI
     {
         public static Sprite CreateSprite(string image, float pixelsPerUnit = 128f)
         {
-            Texture2D tex = GUIExtensions.CreateEmptyTexture();
+            Texture2D tex = CanvasUtilities.CreateEmptyTexture();
             Stream myStream = Assembly.GetCallingAssembly().GetManifestResourceStream(image);
             byte[] data = myStream.ReadFully();
             ImageConversion.LoadImage(tex, data, false);
@@ -21,6 +22,18 @@ namespace PeasAPI
             return sprite;
         }
 
+        public static string ColorString(Color c, string s)
+        {
+            return string.Format("<color=#{0:X2}{1:X2}{2:X2}{3:X2}>{4}</color>", ToByte(c.r), ToByte(c.g), ToByte(c.b),
+                ToByte(c.a), s);
+        }
+
+        private static byte ToByte(float f)
+        {
+            f = Mathf.Clamp01(f);
+            return (byte)(f * 255);
+        }
+        
         public static List<PlayerControl> GetAllPlayers()
         {
             if (PlayerControl.AllPlayerControls != null && PlayerControl.AllPlayerControls.Count > 0)

@@ -2,8 +2,8 @@
 using System.Linq;
 using Hazel;
 using PeasAPI.CustomEndReason;
-using Reactor;
-using Reactor.Networking;
+using Reactor.Networking.Attributes;
+using Reactor.Networking.Rpc;
 using UnityEngine;
 
 namespace PeasAPI.CustomRpc
@@ -21,9 +21,9 @@ namespace PeasAPI.CustomRpc
             public readonly string VictoryText;
             public readonly string DefeatText;
             public readonly string Stinger;
-            public readonly List<GameData.PlayerInfo> Winners;
+            public readonly List<NetworkedPlayerInfo> Winners;
 
-            public Data(Color color, string victoryText, string defeatText, string stinger, List<GameData.PlayerInfo> winners)
+            public Data(Color color, string victoryText, string defeatText, string stinger, List<NetworkedPlayerInfo> winners)
             {
                 Color = color;
                 VictoryText = victoryText;
@@ -66,7 +66,7 @@ namespace PeasAPI.CustomRpc
                     
             var winnerCount = reader.ReadInt32();
             var _winners = reader.ReadBytes(winnerCount).ToList();
-            var winners = new List<GameData.PlayerInfo>();
+            var winners = new List<NetworkedPlayerInfo>();
             foreach (var winner in _winners)
             {
                 winners.Add(winner.GetPlayerInfo());
@@ -88,7 +88,7 @@ namespace PeasAPI.CustomRpc
             EndReasonManager.Stinger = data.Stinger;
             
             if (AmongUsClient.Instance.AmHost)
-                ShipStatus.RpcEndGame(EndReasonManager.CustomGameOverReason, false);
+                GameManager.Instance.RpcEndGame(EndReasonManager.CustomGameOverReason, false);
         }
     }
 }

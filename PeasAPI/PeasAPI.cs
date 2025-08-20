@@ -1,7 +1,7 @@
 ﻿using BepInEx;
 using BepInEx.Configuration;
-using BepInEx.IL2CPP;
 using BepInEx.Logging;
+using BepInEx.Unity.IL2CPP;
 using HarmonyLib;
 using InnerNet;
 using PeasAPI.Components;
@@ -10,6 +10,7 @@ using PeasAPI.Managers;
 using PeasAPI.Options;
 using Reactor;
 using UnityEngine;
+using static PeasAPI.Managers.WatermarkManager;
 using Random = System.Random;
 
 namespace PeasAPI
@@ -21,7 +22,7 @@ namespace PeasAPI
     public class PeasAPI : BasePlugin
     {
         public const string Id = "tk.peasplayer.amongus.api";
-        public const string Version = "1.8.3";
+        public const string Version = "1.9.0";
 
         public Harmony Harmony { get; } = new Harmony(Id);
 
@@ -47,7 +48,7 @@ namespace PeasAPI
             {
                 return GameData.Instance && ShipStatus.Instance && AmongUsClient.Instance &&
                        (AmongUsClient.Instance.GameState == InnerNetClient.GameStates.Started ||
-                        AmongUsClient.Instance.GameMode == global::GameModes.FreePlay);
+                        AmongUsClient.Instance.NetworkMode == global::NetworkModes.FreePlay);
             }
         }
 
@@ -75,10 +76,11 @@ namespace PeasAPI
 
             RegisterCustomRoleAttribute.Load();
             RegisterCustomGameModeAttribute.Load();
-            
+
+            new CustomHeaderOption(MultiMenu.Main, "General Settings");
             ShowRolesOfDead =
-                new CustomToggleOption("ShowRolesOfDead", "Show the roles of dead player", false) {IsFromPeasAPI = true};
-            GameModeManager.GameModeOption = new CustomStringOption("gamemode", "GameMode", "None") {IsFromPeasAPI = true};
+                new CustomToggleOption(MultiMenu.Main, "Show the roles of dead player", false);
+            GameModeManager.GameModeOption = new CustomStringOption(MultiMenu.Main, "GameMode", new string[] { "None" });
             
             Harmony.PatchAll();
         }

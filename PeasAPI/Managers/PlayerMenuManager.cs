@@ -3,8 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using HarmonyLib;
-using Newtonsoft.Json.Utilities;
-using Reactor;
+using Reactor.Utilities;
 using TMPro;
 using UnityEngine;
 using UnityEngine.Events;
@@ -41,7 +40,7 @@ namespace PeasAPI.Managers
             instance.playerStates = new PlayerVoteArea[GameData.Instance.PlayerCount];
             foreach (var playerId in players)
             {
-                GameData.PlayerInfo playerInfo = playerId.GetPlayerInfo();
+                NetworkedPlayerInfo playerInfo = playerId.GetPlayerInfo();
                 PlayerVoteArea playerVoteArea = instance.playerStates[playerId] = instance.CreateButton(playerInfo);
                 playerVoteArea.Parent = instance;
                 playerVoteArea.SetTargetPlayerId(playerInfo.PlayerId);
@@ -106,9 +105,9 @@ namespace PeasAPI.Managers
         private static void CloseMenu()
         {
             MeetingHud.Instance = null;
-            HudManager.Instance.Chat.SetPosition(null);
+            HudManager.Instance.Chat.chatButtonAspectPosition = null;
             HudManager.Instance.Chat.SetVisible(PlayerControl.LocalPlayer.Data.IsDead);
-            HudManager.Instance.Chat.BanButton.Hide();
+            HudManager.Instance.Chat.banButton.Hide();
             Instance.DespawnOnDestroy = false;
             ConsoleJoystick.SetMode_Task();
             Camera.main.GetComponent<FollowerCamera>().Locked = false;
@@ -121,7 +120,7 @@ namespace PeasAPI.Managers
         [HarmonyPatch]
         internal static class Patches
         {
-            [HarmonyPatch(typeof(PlayerControl), nameof(PlayerControl.CoStartMeeting))]
+            [HarmonyPatch(typeof(PlayerControl), nameof(PlayerControl.StartMeeting))]
             [HarmonyPrefix]
             public static void OnMeetingStartPatch(PlayerControl __instance)
             {
@@ -137,7 +136,7 @@ namespace PeasAPI.Managers
             {
                 if (IsMenuOpen)
                 {
-                    HudManager.Instance.Chat.SetPosition(null);
+                    HudManager.Instance.Chat.chatButtonAspectPosition = null;
                     HudManager.Instance.Chat.SetVisible(false);
                     __instance.discussionTimer = 20;
                 }
@@ -185,7 +184,7 @@ namespace PeasAPI.Managers
             [HarmonyPrefix]
             public static bool DummyDontVotePatch(DummyBehaviour __instance)
             {
-                GameData.PlayerInfo data = __instance.myPlayer.Data;
+                NetworkedPlayerInfo data = __instance.myPlayer.Data;
                 if (data == null || data.IsDead)
                 {
                     return false;

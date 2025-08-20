@@ -1,13 +1,11 @@
-﻿using System;
-using System.Linq;
+﻿using System.Linq;
+using AmongUs.GameOptions;
 using HarmonyLib;
 using Il2CppSystem.Collections.Generic;
 using PeasAPI.CustomButtons;
 using PeasAPI.CustomRpc;
-using Reactor.Networking;
-using UnhollowerBaseLib;
+using Reactor.Networking.Rpc;
 using UnityEngine;
-using Object = Il2CppSystem.Object;
 
 namespace PeasAPI.Roles
 {
@@ -27,7 +25,7 @@ namespace PeasAPI.Roles
         [HarmonyPrefix]
         public static void ResetRolePatch(AmongUsClient __instance)
         {
-            PlayerControl.AllPlayerControls.ToArray().Where(player => player != null).Do(player => player.SetRole(null));
+            PlayerControl.AllPlayerControls.ToArray().Where(player => player != null).Do(player => player.SetCustomRole(null));
         }
 
         [HarmonyPatch(typeof(global::RoleManager), nameof(global::RoleManager.SelectRoles))]
@@ -37,10 +35,10 @@ namespace PeasAPI.Roles
             Rpc<RpcInitializeRoles>.Instance.Send();
         }
 
-        [HarmonyPatch(typeof(global::RoleManager), nameof(global::RoleManager.AssignRolesFromList))]
+        [HarmonyPatch(typeof(global::LogicRoleSelectionNormal), nameof(global::LogicRoleSelectionNormal.AssignRolesFromList))]
         [HarmonyPrefix]
-        public static bool ChangeImpostors(global::RoleManager __instance,
-            [HarmonyArgument(0)] List<GameData.PlayerInfo> players, [HarmonyArgument(1)] int teamMax,
+        public static bool ChangeImpostors(global::LogicRoleSelectionNormal __instance,
+            [HarmonyArgument(0)] List<NetworkedPlayerInfo> players, [HarmonyArgument(1)] int teamMax,
             [HarmonyArgument(2)] List<RoleTypes> roleList, [HarmonyArgument(3)] ref int rolesAssigned)
         {
             while (roleList.Count > 0 && players.Count > 0 && rolesAssigned < teamMax)
@@ -59,13 +57,13 @@ namespace PeasAPI.Roles
             return false;
         }
 
-        [HarmonyPatch(typeof(IntroCutscene._ShowRole_d__24), nameof(IntroCutscene._ShowRole_d__24.MoveNext))]
+        [HarmonyPatch(typeof(IntroCutscene._ShowRole_d__41), nameof(IntroCutscene._ShowRole_d__41.MoveNext))]
         [HarmonyPostfix]
-        public static void RoleTextPatch(IntroCutscene._ShowRole_d__24 __instance)
+        public static void RoleTextPatch(IntroCutscene._ShowRole_d__41 __instance)
         {
-            if (PlayerControl.LocalPlayer.GetRole() != null)
+            if (PlayerControl.LocalPlayer.GetCustomRole() != null)
             {
-                var role = PlayerControl.LocalPlayer.GetRole();
+                var role = PlayerControl.LocalPlayer.GetCustomRole();
                 var scene = __instance.__4__this;
 
                 scene.RoleText.text = role.Name;
@@ -80,9 +78,9 @@ namespace PeasAPI.Roles
         [HarmonyPostfix]
         public static void TeamTextPatch(IntroCutscene __instance)
         {
-            if (PlayerControl.LocalPlayer.GetRole() != null)
+            if (PlayerControl.LocalPlayer.GetCustomRole() != null)
             {
-                var role = PlayerControl.LocalPlayer.GetRole();
+                var role = PlayerControl.LocalPlayer.GetCustomRole();
                 var scene = __instance;
 
                 scene.TeamTitle.text = role.Name;
@@ -99,9 +97,9 @@ namespace PeasAPI.Roles
         public static void RoleTeamPatch(IntroCutscene __instance,
             [HarmonyArgument(0)] ref List<PlayerControl> yourTeam)
         {
-            if (PlayerControl.LocalPlayer.GetRole() != null)
+            if (PlayerControl.LocalPlayer.GetCustomRole() != null)
             {
-                var role = PlayerControl.LocalPlayer.GetRole();
+                var role = PlayerControl.LocalPlayer.GetCustomRole();
                 if (role.Team == Team.Alone)
                 {
                     yourTeam = new List<PlayerControl>();
@@ -151,18 +149,18 @@ namespace PeasAPI.Roles
                 return true;
             }
         }*/
-        [HarmonyPatch(typeof(ExileController), nameof(ExileController.Begin))]
+        [HarmonyPatch(typeof(ExileController), nameof(ExileController.BeginForGameplay))]
         [HarmonyPostfix]
-        public static void ChangeExileTextPatch(ExileController __instance, [HarmonyArgument(0)] GameData.PlayerInfo exiled, [HarmonyArgument(1)] bool tie)
+        public static void ChangeExileTextPatch(ExileController __instance, [HarmonyArgument(0)] NetworkedPlayerInfo player, [HarmonyArgument(1)] bool voteTie)
         {
-            if (tie || exiled == null)
+            if (voteTie || player == null)
                 return;
             
-            var role = exiled.Object.GetRole();
+            var role = player.Object.GetCustomRole();
             if (role != null)
             {
                 var article = role.Members.Count > 1 ? "a" : "the";
-                __instance.completeString = $"{ExileController.Instance.exiled.PlayerName} was {article} {role.Name}.";
+                __instance.completeString = $"{ExileController.Instance.initData.networkedPlayer.PlayerName} was {article} {role.Name}.";
             }
         } 
 
@@ -194,7 +192,7 @@ namespace PeasAPI.Roles
             {
                 if (PeasAPI.GameStarted)
                 {
-                    var localRole = PlayerControl.LocalPlayer.GetRole();
+                    var localRole = PlayerControl.LocalPlayer.GetCustomRole();
 
                     if (localRole != null && __instance.PlayerId == PlayerControl.LocalPlayer.PlayerId)
                     {
@@ -205,7 +203,7 @@ namespace PeasAPI.Roles
                         {
                             if (!__instance.Data.Role.IsImpostor)
                                 __instance.SetKillTimer(__instance.killTimer - Time.fixedDeltaTime);
-                            PlayerControl target = __instance.FindClosestTarget(false);
+                            PlayerControl target = __instance.Data.Role.FindClosestTarget();
                             HudManager.Instance.KillButton.SetTarget(target);
                         }
                         else
@@ -260,13 +258,13 @@ namespace PeasAPI.Roles
                     Debug.LogWarning(string.Format("Bad kill from {0} to {1}", killer.PlayerId, num));
                     return false;
                 }
-                GameData.PlayerInfo data = target.Data;
+                NetworkedPlayerInfo data = target.Data;
                 if (data == null || data.IsDead || target.inVent)
                 {
                     Debug.LogWarning("Invalid target data for kill");
                     return false;
                 }
-                PlayerControl.LocalPlayer.RpcMurderPlayer(__instance.currentTarget);
+                PlayerControl.LocalPlayer.RpcMurderPlayer(__instance.currentTarget, true);
                 __instance.SetTarget(null);
             }
             return false;
@@ -279,7 +277,7 @@ namespace PeasAPI.Roles
             {
                 if (!PlayerControl.LocalPlayer || PlayerControl.LocalPlayer.Data == null || !PlayerControl.LocalPlayer.Data.Role)
                     return false;
-                RoleTeamTypes teamType = PlayerControl.LocalPlayer.GetRole() == null ? PlayerControl.LocalPlayer.Data.Role.TeamType : PlayerControl.LocalPlayer.GetRole().CanKill() ? RoleTeamTypes.Impostor : RoleTeamTypes.Crewmate;
+                RoleTeamTypes teamType = PlayerControl.LocalPlayer.GetCustomRole() == null ? PlayerControl.LocalPlayer.Data.Role.TeamType : PlayerControl.LocalPlayer.GetCustomRole().CanKill() ? RoleTeamTypes.Impostor : RoleTeamTypes.Crewmate;
                 if (__instance.currentTarget && __instance.currentTarget != target)
                 {
                     __instance.currentTarget.ToggleHighlight(false, teamType);
@@ -301,12 +299,12 @@ namespace PeasAPI.Roles
         {
             public static bool Prefix(PlayerControl __instance, [HarmonyArgument(0)] float time)
             {
-                if (__instance.GetRole() != null && __instance.GetRole().CanKill() || __instance.Data.Role.CanUseKillButton)
+                if (__instance.GetCustomRole() != null && __instance.GetCustomRole().CanKill() || __instance.Data.Role.CanUseKillButton)
                 {
-                    if (PlayerControl.GameOptions.KillCooldown <= 0f)
+                    if (GameOptionsManager.Instance.currentNormalGameOptions.KillCooldown <= 0f)
                         return false;
-                    __instance.killTimer = Mathf.Clamp(time, 0f, PlayerControl.GameOptions.KillCooldown);
-                    DestroyableSingleton<HudManager>.Instance.KillButton.SetCoolDown(__instance.killTimer, PlayerControl.GameOptions.KillCooldown);
+                    __instance.killTimer = Mathf.Clamp(time, 0f, GameOptionsManager.Instance.currentNormalGameOptions.KillCooldown);
+                    DestroyableSingleton<HudManager>.Instance.KillButton.SetCoolDown(__instance.killTimer, GameOptionsManager.Instance.currentNormalGameOptions.KillCooldown);
                 }
                 return false;
             }
@@ -328,40 +326,23 @@ namespace PeasAPI.Roles
             RoleManager.Roles.Do(r => r.OnExiled(__instance));
         }
 
-        [HarmonyPatch(typeof(PlayerControl), nameof(PlayerControl.CoStartMeeting))]
+        [HarmonyPatch(typeof(PlayerControl), nameof(PlayerControl.StartMeeting))]
         [HarmonyPrefix]
         public static void OnMeetingStart(MeetingHud __instance)
         {
             RoleManager.Roles.Do(r => r.OnMeetingStart(__instance));
         }
         
-        [HarmonyPatch(typeof(PlayerControl), nameof(PlayerControl.FindClosestTarget))]
-        public static class PlayerControlFindClosestTargetPatch
-        {
-            public static bool Prefix(PlayerControl __instance, out PlayerControl __result,
-                [HarmonyArgument(0)] bool protecting)
-            {
-                if (__instance.GetRole() != null)
-                {
-                    __result = __instance.GetRole().FindClosestTarget(__instance, protecting);
-                    return false;
-                }
-
-                __result = null;
-                return true;
-            }
-        }
-
-        [HarmonyPatch(typeof(PlayerControl._CoSetTasks_d__112), nameof(PlayerControl._CoSetTasks_d__112.MoveNext))]
+        [HarmonyPatch(typeof(PlayerControl._CoSetTasks_d__103), nameof(PlayerControl._CoSetTasks_d__103.MoveNext))]
         public static class PlayerControlSetTasks
         {
-            public static void Postfix(PlayerControl._CoSetTasks_d__112 __instance)
+            public static void Postfix(PlayerControl._CoSetTasks_d__103 __instance)
             {
                 if (__instance == null)
                     return;
 
                 var player = __instance.__4__this;
-                var role = player.GetRole();
+                var role = player.GetCustomRole();
 
                 if (role == null)
                     return;
@@ -397,25 +378,25 @@ namespace PeasAPI.Roles
             {
                 if (__instance.isActiveAndEnabled && PeasAPI.GameStarted)
                 {
-                    var role = PlayerControl.LocalPlayer.GetRole();
-
+                    var role = PlayerControl.LocalPlayer.GetCustomRole();
                     if (role == null)
                         return true;
-
-                    HudManager.Instance.ShowMap((Action<MapBehaviour>)(map =>
+            
+                    var mapOptions = new MapOptions
                     {
-                        foreach (MapRoom mapRoom in map.infectedOverlay.rooms.ToArray()
-                            .Where(room => !role.CanSabotage(room.room)))
-                        {
-                            mapRoom.gameObject.SetActive(false);
-                        }
-
-                        map.ShowSabotageMap();
-                    }));
-
+                        Mode = MapOptions.Modes.Sabotage
+                    };
+            
+                    MapBehaviour.Instance.Show(mapOptions);
+            
+                    foreach (MapRoom mapRoom in MapBehaviour.Instance.infectedOverlay.rooms.ToArray())
+                    {
+                        mapRoom.gameObject.SetActive(role.CanSabotage(mapRoom.room));
+                    }
+            
                     return false;
                 }
-
+        
                 return true;
             }
         }
@@ -427,18 +408,15 @@ namespace PeasAPI.Roles
             {
                 if (PeasAPI.GameStarted)
                 {
-                    var role = PlayerControl.LocalPlayer.GetRole();
+                    var role = PlayerControl.LocalPlayer.GetCustomRole();
 
                     if (role == null)
                         return true;
                     
-                    HudManager.Instance.ShowMap((Action<MapBehaviour>) (map =>
+                    foreach (MapRoom mapRoom in __instance.infectedOverlay.rooms.ToArray())
                     {
-                        foreach (MapRoom mapRoom in map.infectedOverlay.rooms.ToArray())
-                        {
-                            mapRoom.gameObject.SetActive(role.CanSabotage(mapRoom.room));
-                        }
-                    }));
+                        mapRoom.gameObject.SetActive(role.CanSabotage(mapRoom.room));
+                    }
                     
                     //return false;
                 }
@@ -454,7 +432,7 @@ namespace PeasAPI.Roles
             public static void Postfix(Vent __instance, [HarmonyArgument(1)] ref bool canUse,
                 [HarmonyArgument(2)] ref bool couldUse, ref float __result)
             {
-                BaseRole role = PlayerControl.LocalPlayer.GetRole();
+                BaseRole role = PlayerControl.LocalPlayer.GetCustomRole();
 
                 if (role == null)
                     return;
@@ -475,9 +453,9 @@ namespace PeasAPI.Roles
             }
         }
 
-        [HarmonyPatch(typeof(ShipStatus), nameof(ShipStatus.RpcEndGame))]
+        [HarmonyPatch(typeof(GameManager), nameof(GameManager.RpcEndGame))]
         [HarmonyPrefix]
-        private static bool ShouldGameEndPatch(ShipStatus __instance, [HarmonyArgument(0)] GameOverReason endReason)
+        private static bool ShouldGameEndPatch(GameManager __instance, [HarmonyArgument(0)] GameOverReason endReason)
         {
             return RoleManager.Roles.Count(r => r.Members.Count != 0 && !r.ShouldGameEnd(endReason)) == 0;
         }
@@ -520,7 +498,7 @@ namespace PeasAPI.Roles
             __instance.CompletedTasks = 0;
             foreach (var playerInfo in __instance.AllPlayers)
             {
-                if (!playerInfo.Disconnected && playerInfo.Tasks != null && playerInfo.Object && (PlayerControl.GameOptions.GhostsDoTasks || !playerInfo.IsDead) && playerInfo.Role && playerInfo.Role.TasksCountTowardProgress && (playerInfo.GetRole() == null || playerInfo.GetRole().HasToDoTasks))
+                if (!playerInfo.Disconnected && playerInfo.Tasks != null && playerInfo.Object && (GameOptionsManager.Instance.currentNormalGameOptions.GhostsDoTasks || !playerInfo.IsDead) && playerInfo.Role && playerInfo.Role.TasksCountTowardProgress && (playerInfo.GetCustomRole() == null || playerInfo.GetCustomRole().HasToDoTasks))
                 {
                     foreach (var task in playerInfo.Tasks)
                     {
@@ -534,8 +512,8 @@ namespace PeasAPI.Roles
             }
             /*for (int i = 0; i < __instance.AllPlayers.Count; i++)
             {
-                GameData.PlayerInfo playerInfo = __instance.AllPlayers[i];
-                if (!playerInfo.Disconnected && playerInfo.Tasks != null && playerInfo.Object && (PlayerControl.GameOptions.GhostsDoTasks || !playerInfo.IsDead) && playerInfo.Role && playerInfo.Role.TasksCountTowardProgress)
+                NetworkedPlayerInfo playerInfo = __instance.AllPlayers[i];
+                if (!playerInfo.Disconnected && playerInfo.Tasks != null && playerInfo.Object && (GameOptionsManager.Instance.currentNormalGameOptions.GhostsDoTasks || !playerInfo.IsDead) && playerInfo.Role && playerInfo.Role.TasksCountTowardProgress)
                 {
                     for (int j = 0; j < playerInfo.Tasks.Count; j++)
                     {

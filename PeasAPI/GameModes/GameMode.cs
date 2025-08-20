@@ -1,6 +1,6 @@
 ﻿using System;
-using System.Collections.Generic;
-using BepInEx.IL2CPP;
+using AmongUs.GameOptions;
+using BepInEx.Unity.IL2CPP;
 
 namespace PeasAPI.GameModes
 {
@@ -35,7 +35,7 @@ namespace PeasAPI.GameModes
             return true;
         }
         
-        public virtual bool OnMeetingCall(PlayerControl caller, GameData.PlayerInfo target)
+        public virtual bool OnMeetingCall(PlayerControl caller, NetworkedPlayerInfo target)
         {
             return true;
         }

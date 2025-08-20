@@ -1,8 +1,9 @@
 ﻿using System;
 using System.Linq;
+using AmongUs.GameOptions;
 using HarmonyLib;
 using Il2CppSystem.Collections.Generic;
-using Reactor;
+using Reactor.Localization.Utilities;
 using UnityEngine;
 
 namespace PeasAPI.GameModes
@@ -23,10 +24,10 @@ namespace PeasAPI.GameModes
             }
         }
         
-        [HarmonyPatch(typeof(ShipStatus), nameof(ShipStatus.RpcEndGame))]
-        class ShipStatusRpcEndGamePatch
+        [HarmonyPatch(typeof(GameManager), nameof(GameManager.RpcEndGame))]
+        class GameManagerRpcEndGamePatch
         {
-            public static bool Prefix(ShipStatus __instance, [HarmonyArgument(0)] GameOverReason reason)
+            public static bool Prefix(GameManager __instance, [HarmonyArgument(0)] GameOverReason reason)
             {
                 foreach (var mode in GameModeManager.Modes)
                 {
@@ -101,7 +102,7 @@ namespace PeasAPI.GameModes
             }
         }
         
-        [HarmonyPatch(typeof(PlayerControl), nameof(PlayerControl.SetRole))]
+        [HarmonyPatch(typeof(PlayerControl), nameof(PlayerControl.CoSetRole))]
         [HarmonyPrefix]
         public static void AssignLocalRolePatch(PlayerControl __instance, [HarmonyArgument(0)] ref RoleTypes roleType)
         {
@@ -125,16 +126,18 @@ namespace PeasAPI.GameModes
                     {
                         if (mode.Enabled)
                         {
-                            HudManager.Instance.ShowMap((Action<MapBehaviour>) (map =>
+                            var mapOptions = new MapOptions
                             {
-                                foreach (MapRoom mapRoom in map.infectedOverlay.rooms.ToArray())
-                                {
-                                    mapRoom.gameObject.SetActive(mode.AllowSabotage(mapRoom.room));
-                                }
+                                Mode = MapOptions.Modes.Sabotage
+                            };
 
-                                map.ShowSabotageMap();
-                            }));
-
+                            MapBehaviour.Instance.Show(mapOptions);
+                    
+                            foreach (MapRoom mapRoom in MapBehaviour.Instance.infectedOverlay.rooms.ToArray())
+                            {
+                                mapRoom.gameObject.SetActive(mode.AllowSabotage(mapRoom.room));
+                            }
+                    
                             return false;
                         }
                     }
@@ -155,13 +158,10 @@ namespace PeasAPI.GameModes
                     {
                         if (mode.Enabled)
                         {
-                            HudManager.Instance.ShowMap((Action<MapBehaviour>) (map =>
+                            foreach (MapRoom mapRoom in __instance.infectedOverlay.rooms.ToArray())
                             {
-                                foreach (MapRoom mapRoom in map.infectedOverlay.rooms.ToArray())
-                                {
-                                    mapRoom.gameObject.SetActive(mode.AllowSabotage(mapRoom.room));
-                                }
-                            }));
+                                mapRoom.gameObject.SetActive(mode.AllowSabotage(mapRoom.room));
+                            }
                         }
                     }
                 }
@@ -171,7 +171,7 @@ namespace PeasAPI.GameModes
         [HarmonyPatch(typeof(PlayerControl), nameof(PlayerControl.CmdReportDeadBody))]
         class PlayerControlCmdReportDeadBodyPatch
         {
-            public static bool Prefix(PlayerControl __instance, [HarmonyArgument(0)] GameData.PlayerInfo target)
+            public static bool Prefix(PlayerControl __instance, [HarmonyArgument(0)] NetworkedPlayerInfo target)
             {
                 foreach (var mode in GameModeManager.Modes)
                 {
@@ -183,10 +183,10 @@ namespace PeasAPI.GameModes
             }
         }
         
-        [HarmonyPatch(typeof(PlayerControl._CoSetTasks_d__112), nameof(PlayerControl._CoSetTasks_d__112.MoveNext))]
+        [HarmonyPatch(typeof(PlayerControl._CoSetTasks_d__103), nameof(PlayerControl._CoSetTasks_d__103.MoveNext))]
         public static class PlayerControlSetTasks
         {
-            public static void Postfix(PlayerControl._CoSetTasks_d__112 __instance)
+            public static void Postfix(PlayerControl._CoSetTasks_d__103 __instance)
             {
                 if (__instance == null)
                     return;
@@ -292,7 +292,11 @@ namespace PeasAPI.GameModes
         [HarmonyPostfix]
         static void SetupGameModeSetting(AmongUsClient __instance)
         {
-            GameModeManager.GameModeOption.Values = GameModeManager.Modes.ConvertAll(mode => mode.Name).Prepend("None").ToList().ConvertAll(mode => (StringNames) CustomStringName.Register(mode));
+            var modeNames = GameModeManager.Modes.ConvertAll(mode => mode.Name);
+
+            modeNames.Insert(0, "None");
+
+            GameModeManager.GameModeOption.Values = modeNames.ToArray();
         }
     }
 }

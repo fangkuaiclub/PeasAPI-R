@@ -1,6 +1,4 @@
-﻿using System;
-
-namespace PeasAPI.Enums
+﻿namespace PeasAPI.Enums
 {
 	public enum FileType
 	{

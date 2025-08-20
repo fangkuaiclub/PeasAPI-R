@@ -1,72 +1,144 @@
-﻿using Hazel;
+﻿using System;
+using System.Collections;
+using System.Collections.Generic;
+using System.Linq;
+using HarmonyLib;
+using Hazel;
 using PeasAPI.Options;
-using Reactor;
-using Reactor.Networking;
+using UnityEngine;
 
 namespace PeasAPI.CustomRpc
 {
-    [RegisterCustomRpc((uint) CustomRpcCalls.UpdateSetting)]
-    public class RpcUpdateSetting : PlayerCustomRpc<PeasAPI, RpcUpdateSetting.Data>
+    public static class RpcUpdateSetting
     {
-        public RpcUpdateSetting(PeasAPI plugin, uint id) : base(plugin, id)
+        public static IEnumerator SendRpc(CustomOption optionn = null, int RecipientId = -1)
         {
+            yield return new WaitForSecondsRealtime(0.5f);
+
+            List<CustomOption> options;
+            if (optionn != null)
+                options = new List<CustomOption> { optionn };
+            else
+                options = CustomOption.AllOptions;
+
+            var writer = AmongUsClient.Instance.StartRpcImmediately(PlayerControl.LocalPlayer.NetId,
+                (byte)CustomRpcCalls.UpdateSetting, SendOption.Reliable, RecipientId);
+
+            foreach (var option in options)
+            {
+                if (option.Type == CustomOptionType.Header) continue;
+
+                if (writer.Position > 1000)
+                {
+                    AmongUsClient.Instance.FinishRpcImmediately(writer);
+                    writer = AmongUsClient.Instance.StartRpcImmediately(PlayerControl.LocalPlayer.NetId,
+                        (byte)CustomRpcCalls.UpdateSetting, SendOption.Reliable, RecipientId);
+                }
+
+                writer.WritePacked(option.ID);
+
+                switch (option.Type)
+                {
+                    case CustomOptionType.Toggle:
+                        writer.Write((bool)option.ValueObject);
+                        break;
+                    case CustomOptionType.Number:
+                    {
+                        switch (option.CustomRoleOptionType)
+                        {
+                            case CustomRoleOptionType.None:
+                                switch ((option as CustomNumberOption).IntSafe)
+                                {
+                                    case true:
+                                        writer.WritePacked((int)(float)option.ValueObject);
+                                        break;
+                                    case false:
+                                        writer.Write((float)option.ValueObject);
+                                        break;
+                                }
+
+                                break;
+                            case CustomRoleOptionType.Chance:
+                                writer.Write(Convert.ToInt32(option.ValueObject));
+                                option.BaseRole.Chance = Convert.ToInt32(option.ValueObject);
+                                break;
+                            case CustomRoleOptionType.Count:
+                                writer.Write(Convert.ToInt32(option.ValueObject));
+                                option.BaseRole.Count =
+                                    option.BaseRole.MaxCount = Convert.ToInt32(option.ValueObject);
+                                break;
+                        }
+                    }
+                        break;
+                    case CustomOptionType.String:
+                        writer.WritePacked((int)option.ValueObject);
+                        break;
+                }
+            }
+
+            AmongUsClient.Instance.FinishRpcImmediately(writer);
         }
 
-        public readonly struct Data
+        public static void ReceiveRpc(MessageReader reader, bool AllOptions)
         {
-            public readonly CustomOption Option;
-            public readonly object Value;
-
-            public Data(CustomOption option, object value)
+            PeasAPI.Logger.LogInfo(
+                $"Options received - {reader.BytesRemaining} bytes");
+            while (reader.BytesRemaining > 0)
             {
-                Option = option;
-                Value = value;
+                var id = reader.ReadPackedInt32();
+                var customOption =
+                    CustomOption.AllOptions.FirstOrDefault(option =>
+                        option.ID == id); // Works but may need to change to gameObject.name check
+                var type = customOption?.Type;
+                object value = null;
+
+                switch (type)
+                {
+                    case CustomOptionType.Toggle:
+                        value = reader.ReadBoolean();
+                        break;
+                    case CustomOptionType.Number:
+                        switch ((customOption as CustomNumberOption).IntSafe)
+                        {
+                            case true:
+                                value = (float)reader.ReadPackedInt32();
+                                break;
+                            case false:
+                                value = reader.ReadSingle();
+                                break;
+                        }
+
+                        break;
+                    case CustomOptionType.String:
+                        value = reader.ReadPackedInt32();
+                        break;
+                }
+
+                customOption?.Set(value, Notify: !AllOptions);
+
+                if (LobbyInfoPane.Instance.LobbyViewSettingsPane.gameObject.activeSelf)
+                {
+                    var panels = GameObject.FindObjectsOfType<ViewSettingsInfoPanel>();
+                    foreach (var panel in panels)
+                        if (panel.titleText.text == customOption.GetName() &&
+                            customOption.Type != CustomOptionType.Header)
+                            panel.settingText.text = customOption.ToString();
+                }
             }
         }
 
-        public override RpcLocalHandling LocalHandling => RpcLocalHandling.None;
-
-        public override void Write(MessageWriter writer, Data data)
+        [HarmonyPatch(typeof(PlayerControl), nameof(PlayerControl.HandleRpc))]
+        public static class HandleRpc
         {
-            writer.Write(data.Option.Id);
-            
-            if (data.Option.GetType() == typeof(CustomToggleOption))
-                writer.Write((bool) data.Value);
-            else if (data.Option.GetType() == typeof(CustomNumberOption))
-                writer.Write((float) data.Value);
-            else if (data.Option.GetType() == typeof(CustomStringOption))
-                writer.Write((int) data.Value);
-            
-            //PeasApi.Logger.LogInfo("1: " + data.Option.Id + " " + data.Value);
-        }
-
-        public override Data Read(MessageReader reader)
-        {
-            //PeasApi.Logger.LogInfo("2");
-            var id = reader.ReadString();
-            //PeasApi.Logger.LogInfo("2b: " + id);
-            var option = OptionManager.CustomOptions.Find(_option => _option.Id == id);
-            object value = null;
-
-            if (option.GetType() == typeof(CustomToggleOption))
-                value = reader.ReadBoolean();
-            else if (option.GetType() == typeof(CustomNumberOption))
-                value = reader.ReadSingle();
-            else if (option.GetType() == typeof(CustomStringOption))
-                value = reader.ReadInt32();
-            
-            return new Data(option, value);
-        }
-
-        public override void Handle(PlayerControl innerNetObject, Data data)
-        {
-            //PeasApi.Logger.LogInfo("4: " + data.Value.GetType());
-            if (data.Option.GetType() == typeof(CustomToggleOption))
-                ((CustomToggleOption) data.Option).SetValue((bool) data.Value);
-            else if (data.Option.GetType() == typeof(CustomNumberOption))
-                ((CustomNumberOption) data.Option).SetValue((float) data.Value);
-            else if (data.Option.GetType() == typeof(CustomStringOption))
-                ((CustomStringOption) data.Option).SetValue((int) data.Value);
+            private static void Postfix([HarmonyArgument(0)] byte callId, [HarmonyArgument(1)] MessageReader reader)
+            {
+                switch (callId)
+                {
+                    case (byte)CustomRpcCalls.UpdateSetting:
+                        ReceiveRpc(reader, reader.BytesRemaining > 8);
+                        break;
+                }
+            }
         }
     }
 }

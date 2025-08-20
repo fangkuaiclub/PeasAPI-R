@@ -4,9 +4,9 @@ using HarmonyLib;
 using PeasAPI.CustomEndReason;
 using PeasAPI.GameModes;
 using PeasAPI.Roles;
-using Reactor;
-using Reactor.Extensions;
-using Reactor.Networking;
+using Reactor.Networking.Attributes;
+using Reactor.Networking.Rpc;
+using Reactor.Utilities.Extensions;
 
 namespace PeasAPI.CustomRpc
 {
@@ -27,25 +27,25 @@ namespace PeasAPI.CustomRpc
 
                 EndReasonManager.Reset();
 
-                if (AmongUsClient.Instance.GameMode != global::GameModes.FreePlay)
+                if (AmongUsClient.Instance.NetworkMode != global::NetworkModes.FreePlay)
                 {
                     var rolesForPlayers = new List<BaseRole>();
 
-                    var roles = Roles.RoleManager.Roles.Where(role => role.GetChance() == 100).ToList();
+                    var roles = Roles.RoleManager.Roles.Where(role => role.Chance == 100).ToList();
                     foreach (var role in roles)
                     {
-                        for (int i = 0; i < role.GetCount(); i++)
+                        for (int i = 0; i < role.Count; i++)
                         {
                             rolesForPlayers.Add(role);
                         }
                     }
 
                     var roles2 = (from role in Roles.RoleManager.Roles
-                        where role.GetCount() > 0 && role.GetChance() > 0 && role.GetChance() < 100
+                        where role.Count > 0 && role.Chance > 0 && role.Chance < 100
                         select role).ToList();
                     foreach (var role in roles2)
                     {
-                        for (int i = 0; i < role.GetCount(); i++)
+                        for (int i = 0; i < role.Count; i++)
                         {
                             rolesForPlayers.Add(role);
                         }
@@ -86,21 +86,21 @@ namespace PeasAPI.CustomRpc
             {
                 var nonRoleImpostors = Roles.RoleManager.Impostors.Where(id =>
                         id.GetPlayer().Data.Role.IsSimpleRole &&
-                        !RoleManager.IsGhostRole(id.GetPlayerInfo().Role.Role) && id.GetPlayer().GetRole() == null)
+                        !RoleManager.IsGhostRole(id.GetPlayerInfo().Role.Role) && id.GetPlayer().GetCustomRole() == null)
                     .ToArray();
                 
                 if (nonRoleImpostors.Length == 0)
                     return;
 
                 if (Roles.RoleManager.HostMod.IsRole.ContainsKey(role) && Roles.RoleManager.HostMod.IsRole[role] &&
-                    PlayerControl.LocalPlayer.GetRole() == null)
+                    PlayerControl.LocalPlayer.GetCustomRole() == null)
                 {
                     PlayerControl.LocalPlayer.RpcSetRole(role);
                     return;
                 }
 
                 var chance = HashRandom.Next(101);
-                if (chance < role.GetChance())
+                if (chance < role.Chance)
                 {
                     var member =
                         nonRoleImpostors[PeasAPI.Random.Next(0, nonRoleImpostors.Length)];
@@ -111,21 +111,21 @@ namespace PeasAPI.CustomRpc
             {
                 var nonRoleCrewmates = Roles.RoleManager.Crewmates.Where(id =>
                         id.GetPlayer().Data.Role.IsSimpleRole &&
-                        !RoleManager.IsGhostRole(id.GetPlayerInfo().Role.Role) && id.GetPlayer().GetRole() == null)
+                        !RoleManager.IsGhostRole(id.GetPlayerInfo().Role.Role) && id.GetPlayer().GetCustomRole() == null)
                     .ToArray();
                 
                 if (nonRoleCrewmates.Length == 0)
                     return;
                 
                 if (Roles.RoleManager.HostMod.IsRole.ContainsKey(role) && Roles.RoleManager.HostMod.IsRole[role] &&
-                    PlayerControl.LocalPlayer.GetRole() == null)
+                    PlayerControl.LocalPlayer.GetCustomRole() == null)
                 {
                     PlayerControl.LocalPlayer.RpcSetRole(role);
                     return;
                 }
                 
                 var chance = HashRandom.Next(101);
-                if (chance < role.GetChance())
+                if (chance < role.Chance)
                 {
                     var member =
                         nonRoleCrewmates[PeasAPI.Random.Next(0, nonRoleCrewmates.Length)];

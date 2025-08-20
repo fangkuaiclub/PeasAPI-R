@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using AmongUs.GameOptions;
 using HarmonyLib;
 using UnityEngine;
 using Action = System.Action;
@@ -13,10 +14,10 @@ namespace PeasAPI.CustomButtons
         public static List<CustomButton> Buttons = new List<CustomButton>();
         public static List<CustomButton> VisibleButtons => Buttons.Where(button => button.Visible && button.CouldBeUsed()).ToList();
         public static bool HudActive = true;
-        
+
         private Color _startColorText = new Color(255, 255, 255);
         private Sprite _buttonSprite;
-        
+
         public KillButton KillButtonManager;
         public Vector2 PositionOffset;
         public Vector2 TextOffset;
@@ -105,19 +106,19 @@ namespace PeasAPI.CustomButtons
             KillButtonManager.gameObject.SetActive(true);
             KillButtonManager.gameObject.name = "CustomButton";
             KillButtonManager.transform.localScale = new Vector3(1, 1, 1);
-            
+
             _startColorText = KillButtonManager.cooldownTimerText.color;
-            
+
             KillButtonManager.graphic.enabled = true;
             KillButtonManager.graphic.sprite = _buttonSprite;
-            
+
             KillButtonManager.buttonLabelText.enabled = UseText;
             KillButtonManager.buttonLabelText.text = Text;
-            KillButtonManager.buttonLabelText.transform.position += (Vector3) TextOffset + new Vector3(0f, 0.1f);
-            
+            KillButtonManager.buttonLabelText.transform.position += (Vector3)TextOffset + new Vector3(0f, 0.1f);
+
             var button = KillButtonManager.GetComponent<PassiveButton>();
             button.OnClick.RemoveAllListeners();
-            button.OnClick.AddListener((UnityEngine.Events.UnityAction) listener);
+            button.OnClick.AddListener((UnityEngine.Events.UnityAction)listener);
 
             void listener()
             {
@@ -137,7 +138,7 @@ namespace PeasAPI.CustomButtons
                 }
             }
         }
-        
+
         private void Update()
         {
             if (Target == TargetType.Player)
@@ -167,7 +168,7 @@ namespace PeasAPI.CustomButtons
                         image = ObjectTarget.transform.FindChild("Sprite").GetComponent<SpriteRenderer>();
                     if (!image)
                         image = ObjectTarget.GetComponentInChildren<SpriteRenderer>();
-                    
+
                     if (image)
                     {
                         image.material.SetFloat("_Outline", 0);
@@ -181,7 +182,7 @@ namespace PeasAPI.CustomButtons
                         image = target.transform.FindChild("Sprite").GetComponent<SpriteRenderer>();
                     if (!image)
                         image = target.GetComponentInChildren<SpriteRenderer>();
-                    
+
                     if (image)
                     {
                         image.material.SetFloat("_Outline", 1);
@@ -202,7 +203,7 @@ namespace PeasAPI.CustomButtons
                         image = ObjectTarget.transform.FindChild("Sprite").GetComponent<SpriteRenderer>();
                     if (!image)
                         image = ObjectTarget.GetComponentInChildren<SpriteRenderer>();
-                    
+
                     if (image)
                     {
                         image.material.SetFloat("_Outline", 0);
@@ -216,7 +217,7 @@ namespace PeasAPI.CustomButtons
                         image = target.transform.FindChild("Sprite").GetComponent<SpriteRenderer>();
                     if (!image)
                         image = target.GetComponentInChildren<SpriteRenderer>();
-                    
+
                     if (image)
                     {
                         image.material.SetFloat("_Outline", 1);
@@ -248,7 +249,7 @@ namespace PeasAPI.CustomButtons
                 {
                     KillButtonManager.cooldownTimerText.color = _startColorText;
                     Cooldown = MaxCooldown;
-                    
+
                     IsEffectActive = false;
                     OnEffectEnd();
                 }
@@ -257,16 +258,16 @@ namespace PeasAPI.CustomButtons
             {
                 if (CouldBeUsed() && Enabled)
                     Cooldown -= Time.deltaTime;
-                
+
                 KillButtonManager.buttonLabelText.color = KillButtonManager.graphic.color = new Color(1f, 1f, 1f, 0.3f);
             }
 
             KillButtonManager.buttonLabelText.enabled = UseText;
             KillButtonManager.buttonLabelText.text = Text;
-            
+
             KillButtonManager.gameObject.SetActive(CouldBeUsed());
             KillButtonManager.graphic.enabled = CouldBeUsed();
-            
+
             if (CouldBeUsed())
             {
                 KillButtonManager.graphic.material.SetFloat("_Desat", 0f);
@@ -277,13 +278,13 @@ namespace PeasAPI.CustomButtons
 
         public bool CouldBeUsed()
         {
-            if (PlayerControl.LocalPlayer == null) 
+            if (PlayerControl.LocalPlayer == null)
                 return false;
-            
-            if (PlayerControl.LocalPlayer.Data == null) 
+
+            if (PlayerControl.LocalPlayer.Data == null)
                 return false;
-            
-            if (MeetingHud.Instance != null) 
+
+            if (MeetingHud.Instance != null)
                 return false;
 
             return _CouldBeUsed.Invoke(PlayerControl.LocalPlayer);
@@ -296,7 +297,7 @@ namespace PeasAPI.CustomButtons
                 flag = PlayerTarget == null && ObjectTarget == null;
             return _CanBeUsed.Invoke(PlayerControl.LocalPlayer) && Usable && Cooldown < 0f && HudActive && !flag;
         }
-        
+
         public void SetImage(Sprite image)
         {
             _buttonSprite = image;
@@ -309,7 +310,7 @@ namespace PeasAPI.CustomButtons
                 MaxCooldown = maxCooldown.Value;
             KillButtonManager.SetCoolDown(Cooldown, MaxCooldown);
         }
-        
+
         public bool IsCoolingDown()
         {
             return KillButtonManager.isCoolingDown;
@@ -319,7 +320,7 @@ namespace PeasAPI.CustomButtons
         {
             var from = PlayerControl.LocalPlayer;
             PlayerControl result = null;
-            float num = GameOptionsData.KillDistances[Mathf.Clamp(PlayerControl.GameOptions.KillDistance, 0, 2)];
+            float num = LegacyGameOptions.KillDistances[Mathf.Clamp(GameOptionsManager.Instance.currentNormalGameOptions.KillDistance, 0, 2)];
             if (!ShipStatus.Instance)
             {
                 return null;
@@ -355,8 +356,8 @@ namespace PeasAPI.CustomButtons
             var from = PlayerControl.LocalPlayer;
             GameObject result1 = null;
             GameObject result2 = null;
-            float num1 = GameOptionsData.KillDistances[Mathf.Clamp(PlayerControl.GameOptions.KillDistance, 0, 2)];
-            float num2 = GameOptionsData.KillDistances[Mathf.Clamp(PlayerControl.GameOptions.KillDistance, 0, 2)];
+            float num1 = LegacyGameOptions.KillDistances[Mathf.Clamp(GameOptionsManager.Instance.currentNormalGameOptions.KillDistance, 0, 2)];
+            float num2 = LegacyGameOptions.KillDistances[Mathf.Clamp(GameOptionsManager.Instance.currentNormalGameOptions.KillDistance, 0, 2)];
             if (!ShipStatus.Instance)
             {
                 return null;
@@ -415,11 +416,11 @@ namespace PeasAPI.CustomButtons
                     var button = Buttons[i];
                     var killButton = button.KillButtonManager;
                     var canUse = button.CouldBeUsed();
-                
+
                     Buttons[i].KillButtonManager.graphic.sprite = button._buttonSprite;
-                
+
                     killButton.gameObject.SetActive(button.Visible && canUse);
-                
+
                     killButton.buttonLabelText.enabled = canUse;
                     killButton.buttonLabelText.alpha =
                         killButton.isCoolingDown ? Palette.DisabledClear.a : Palette.EnabledColor.a;
@@ -429,8 +430,8 @@ namespace PeasAPI.CustomButtons
                 }
             }
         }
-        
-        [HarmonyPatch(typeof(HudManager), nameof(HudManager.SetHudActive))]
+
+        [HarmonyPatch(typeof(HudManager), nameof(HudManager.SetHudActive), typeof(bool))]
         internal static class HudManagerSetHudActivePatch
         {
             public static void Prefix(HudManager __instance, [HarmonyArgument(0)] bool isActive)

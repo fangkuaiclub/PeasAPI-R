@@ -1,8 +1,7 @@
 ﻿using System.Collections.Generic;
-using Hazel;
 using PeasAPI.CustomRpc;
 using PeasAPI.Roles;
-using Reactor.Networking;
+using Reactor.Networking.Rpc;
 using UnityEngine;
 
 namespace PeasAPI.CustomEndReason
@@ -12,7 +11,7 @@ namespace PeasAPI.CustomEndReason
         /// <summary>
         /// Ends the game with the specified values
         /// </summary>
-        public CustomEndReason(Color color, string victoryText, string defeatText, string stinger, List<GameData.PlayerInfo> winners)
+        public CustomEndReason(Color color, string victoryText, string defeatText, string stinger, List<NetworkedPlayerInfo> winners)
         {
             Rpc<RpcCustomEndReason>.Instance.Send(new RpcCustomEndReason.Data(color, victoryText, defeatText, stinger, winners));
         }
@@ -22,7 +21,7 @@ namespace PeasAPI.CustomEndReason
         /// </summary>
         public CustomEndReason(PlayerControl player)
         {
-            var role = player.GetRole();
+            var role = player.GetCustomRole();
 
             if (role == null)
             {
@@ -37,7 +36,7 @@ namespace PeasAPI.CustomEndReason
                             _winners.Add(_player.PlayerId);
                     }
 
-                    var winners = new List<GameData.PlayerInfo>();
+                    var winners = new List<NetworkedPlayerInfo>();
                     foreach (var winner in _winners)
                     {
                         winners.Add(winner.GetPlayerInfo());
@@ -61,7 +60,7 @@ namespace PeasAPI.CustomEndReason
                             _winners.Add(_player.PlayerId);
                     }
 
-                    var winners = new List<GameData.PlayerInfo>();
+                    var winners = new List<NetworkedPlayerInfo>();
                     foreach (var winner in _winners)
                     {
                         winners.Add(winner.GetPlayerInfo());
@@ -108,12 +107,12 @@ namespace PeasAPI.CustomEndReason
                     _winners.Add(player.PlayerId);
                     foreach (var _player in GameData.Instance.AllPlayers)
                     {
-                        if (_player.PlayerId != player.PlayerId && _player.GetRole() == player.GetRole())
+                        if (_player.PlayerId != player.PlayerId && _player.GetCustomRole() == player.GetCustomRole())
                             _winners.Add(_player.PlayerId);
                     }
                 }
 
-                var winners = new List<GameData.PlayerInfo>();
+                var winners = new List<NetworkedPlayerInfo>();
                 foreach (var winner in _winners)
                 {
                     winners.Add(winner.GetPlayerInfo());

@@ -1,113 +1,59 @@
-﻿using System;
-using System.Reflection;
-using BepInEx.Configuration;
-using PeasAPI.CustomRpc;
-using Reactor;
-using Reactor.Networking;
-using Object = UnityEngine.Object;
+using System;
+using PeasAPI.Roles;
+using UnityEngine;
 
-namespace PeasAPI.Options
+namespace PeasAPI.Options;
+
+public class CustomNumberOption : CustomOption
 {
-    public class CustomNumberOption : CustomOption
+    public CustomNumberOption(MultiMenu multiMenu, string optionName, float value,
+        float increment, float min, float max,
+        Func<object, string> format = null, CustomRoleOptionType customRoleOptionType = CustomRoleOptionType.None,
+        BaseRole baseRole = null)
+        : base(num++, multiMenu, optionName, CustomOptionType.Number, value, format, customRoleOptionType,
+            baseRole)
     {
-        public float Value { get; private set; }
-        
-        public float OldValue { get; private set; }
+        Min = min;
+        Max = max;
+        Increment = increment;
+        IntSafe = Min % 1 == 0 && Max % 1 == 0 && Increment % 1 == 0;
+    }
 
-        public float MinValue { get; set; }
-        
-        public float MaxValue { get; set; }
-        
-        public float Increment { get; set; }
-        
-        public NumberSuffixes SuffixType { get; set; }
+    protected float Min { get; set; }
+    protected float Max { get; set; }
+    protected float Increment { get; set; }
+    public bool IntSafe { get; private set; }
 
-        public delegate void OnValueChangedHandler(CustomNumberOptionValueChangedArgs args);
+    public float Value => (float)ValueObject;
 
-        public event OnValueChangedHandler OnValueChanged;
-        
-        private ConfigEntry<float> _configEntry;
+    public void Increase()
+    {
+        var increment = Increment > 5 && Input.GetKeyInt(KeyCode.LeftShift) ? 5 : Increment;
 
-        public class CustomNumberOptionValueChangedArgs
-        {
-            public CustomNumberOption Option;
+        if (Value + increment >
+            Max + 0.001f) // the slight increase is because of the stupid float rounding errors in the Giant speed
+            Set(Min);
+        else
+            Set(Value + increment);
+    }
 
-            public float OldValue;
+    public void Decrease()
+    {
+        var increment = Increment > 5 && Input.GetKeyInt(KeyCode.LeftShift) ? 5 : Increment;
 
-            public float NewValue;
-            
-            public CustomNumberOptionValueChangedArgs(CustomNumberOption option, float oldValue, float newValue)
-            {
-                Option = option;
-                OldValue = oldValue;
-                NewValue = newValue;
-            }
-        }
+        if (Value - increment < Min - 0.001f) // added it here to in case I missed something else
+            Set(Max);
+        else
+            Set(Value - increment);
+    }
 
-        public void SetValue(float value)
-        {
-            var oldValue = Value;
-            
-            if (AmongUsClient.Instance.AmHost && _configEntry != null)
-                _configEntry.Value = value;
-            
-            Value = value;
-            OldValue = oldValue;
-                
-            ValueChanged(value, oldValue);
-
-            if (AmongUsClient.Instance.AmHost)
-                Rpc<RpcUpdateSetting>.Instance.Send(new RpcUpdateSetting.Data(this, value));
-        }
-        
-        public void ValueChanged(float newValue, float oldValue)
-        {
-            var args = new CustomNumberOptionValueChangedArgs(this, oldValue, newValue);
-            OnValueChanged?.Invoke(args);
-        }
-
-        internal OptionBehaviour CreateOption(NumberOption numberOptionPrefab)
-        {
-            NumberOption numberOption =
-                Object.Instantiate(numberOptionPrefab, numberOptionPrefab.transform.parent);
-                    
-            numberOption.TitleText.text = Title;
-            numberOption.Title = CustomStringName.Register(Title);
-            numberOption.Value = Value;
-            numberOption.ValidRange = new FloatRange(MinValue, MaxValue);
-            numberOption.Increment = Increment;
-            numberOption.SuffixType = SuffixType;
-
-            Option = numberOption;
-
-            numberOption.OnValueChanged = new Action<OptionBehaviour>(behaviour =>
-            {
-                SetValue(numberOption.Value);
-            });
-
-            return numberOption;
-        }
-        
-        public CustomNumberOption(string id, string title, float minValue, float maxValue, float increment, float defaultValue, NumberSuffixes suffixType) : base(title)
-        {
-            Id = $"{Assembly.GetCallingAssembly().GetName().Name}.NumberOption.{id}";
-            try
-            {
-                _configEntry = PeasAPI.ConfigFile.Bind("Options", Id, defaultValue);
-            }
-            catch (Exception e)
-            {
-                PeasAPI.Logger.LogError($"Error while loading the option \"{title}\": {e.Source}");
-            }
-
-            Value = _configEntry?.Value ?? defaultValue;
-            MinValue = minValue;
-            MaxValue = maxValue;
-            Increment = increment;
-            SuffixType = suffixType;
-            HudFormat = "{0}: {1}{2}";
-            
-            OptionManager.CustomOptions.Add(this);
-        }
+    public override void OptionCreated()
+    {
+        base.OptionCreated();
+        var number = Setting.Cast<NumberOption>();
+        number.ValidRange = new FloatRange(Min, Max);
+        number.Increment = Increment;
+        number.Value = number.oldValue = Value;
+        number.ValueText.text = ToString();
     }
 }

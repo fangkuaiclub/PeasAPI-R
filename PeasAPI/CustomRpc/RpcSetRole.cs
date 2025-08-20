@@ -1,7 +1,7 @@
 ﻿using Hazel;
 using PeasAPI.Roles;
-using Reactor;
-using Reactor.Networking;
+using Reactor.Networking.Attributes;
+using Reactor.Networking.Rpc;
 
 namespace PeasAPI.CustomRpc
 {
@@ -47,7 +47,7 @@ namespace PeasAPI.CustomRpc
 
         public override void Handle(PlayerControl innerNetObject, Data data)
         {
-            data.Player.SetRole(data.Role);
+            data.Player.SetCustomRole(data.Role);
         }
     }
 }
