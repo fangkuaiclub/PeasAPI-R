@@ -1,4 +1,5 @@
-﻿using BepInEx;
+﻿using System;
+using BepInEx;
 using BepInEx.Configuration;
 using BepInEx.Logging;
 using BepInEx.Unity.IL2CPP;
@@ -10,21 +11,22 @@ using PeasAPI.Managers;
 using PeasAPI.Options;
 using Reactor;
 using UnityEngine;
-using static PeasAPI.Managers.WatermarkManager;
 using Random = System.Random;
 
 namespace PeasAPI
 {
     [HarmonyPatch]
-    [BepInPlugin(Id, "PeasAPI", Version)]
+    [BepInPlugin(Id, "PeasAPI", VersionString)]
     [BepInProcess("Among Us.exe")]
     [BepInDependency(ReactorPlugin.Id)]
     public class PeasAPI : BasePlugin
     {
         public const string Id = "tk.peasplayer.amongus.api";
-        public const string Version = "1.9.0";
+        public const string VersionString = "1.9.1";
 
         public Harmony Harmony { get; } = new Harmony(Id);
+
+        public static Version Version = Version.Parse(VersionString);
 
         public static readonly Random Random = new Random();
 
@@ -81,7 +83,7 @@ namespace PeasAPI
             ShowRolesOfDead =
                 new CustomToggleOption(MultiMenu.Main, "Show the roles of dead player", false);
             GameModeManager.GameModeOption = new CustomStringOption(MultiMenu.Main, "GameMode", new string[] { "None" });
-            
+
             Harmony.PatchAll();
         }
 

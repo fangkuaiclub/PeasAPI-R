@@ -92,6 +92,8 @@ namespace PeasAPI
         /// </summary>
         public static BaseRole GetCustomRole(this PlayerControl player)
         {
+            if (Roles.RoleManager.Roles == null) return null;
+
             foreach (var _role in Roles.RoleManager.Roles)
             {
                 if (_role.Members.Contains(player.PlayerId))

@@ -7,13 +7,11 @@ namespace PeasAPI.Options;
 
 public class CustomRoleOption : CustomOption
 {
-    internal CustomNumberOption chanceOption;
-    internal CustomNumberOption countOption;
     internal CustomOption[] AdvancedOptions;
 
     public CustomRoleOption(BaseRole baseRole, string prefix, CustomOption[] advancedOptions, MultiMenu menu = MultiMenu.NULL) : base(num++,
         menu == MultiMenu.NULL ? GetMultiMenu(baseRole) : menu,
-        Utility.ColorString(baseRole.Color, baseRole.Name), CustomOptionType.Header, 0, isRoleOption: true)
+        Utility.ColorString(baseRole.Color, baseRole.Name), CustomOptionType.Role, baseRole.Chance, baseRole.Count, baseRole: baseRole, isRoleOption: true)
     {
         List<CustomOption> removedOptions = new List<CustomOption>();
         if (advancedOptions != null)
@@ -27,13 +25,6 @@ public class CustomRoleOption : CustomOption
                 }
             }
         }
-
-        chanceOption = new CustomNumberOption(menu == MultiMenu.NULL ? GetMultiMenu(baseRole) : menu,
-            "Role Chance", 0, 10, 0, 100, PercentFormat,
-            CustomRoleOptionType.Chance, baseRole);
-        countOption = new CustomNumberOption(menu == MultiMenu.NULL ? GetMultiMenu(baseRole) : menu,
-            "Role Count", 1, 1, 1, 15, null,
-            CustomRoleOptionType.Count, baseRole);
 
         foreach (var option in removedOptions)
         {
@@ -69,13 +60,70 @@ public class CustomRoleOption : CustomOption
         }
     }
 
+    public int ChanceValue => (int)ValueObject;
+    public int CountValue => (int)ValueObject2;
+
+    public void IncreaseChance()
+    {
+        int newChance;
+        if (ChanceValue + 10 > 100 + 0.001f)
+            newChance = 0;
+        else
+            newChance = ChanceValue + 10;
+
+        Set(newChance, CountValue);
+    }
+
+    public void DecreaseChance()
+    {
+        int newChance;
+        if (ChanceValue - 10 < 0 - 0.001f)
+            newChance = 100;
+        else
+            newChance = ChanceValue - 10;
+
+        Set(newChance, CountValue);
+    }
+
+    public void IncreaseCount()
+    {
+        int newCount;
+        if (CountValue + 1 > 15 + 0.001f)
+            newCount = 0;
+        else
+            newCount = CountValue + 1;
+
+        Set(ChanceValue, newCount);
+    }
+
+    public void DecreaseCount()
+    {
+        int newCount;
+        if (CountValue - 1 < 0 - 0.001f)
+            newCount = 15;
+        else
+            newCount = CountValue - 1;
+
+        Set(ChanceValue, newCount);
+    }
+
     public int GetChance()
     {
-        return (int)chanceOption.Value;
+        return ChanceValue;
     }
 
     public int GetCount()
     {
-        return (int)countOption.Value;
+        return CountValue;
+    }
+
+    public override void OptionCreated()
+    {
+        base.OptionCreated();
+        var roleOption = Setting.Cast<RoleOptionSetting>();
+        roleOption.roleChance = BaseRole.Chance = (int)ValueObject;
+        roleOption.roleMaxCount = (int)ValueObject2;
+        roleOption.chanceText.text = ToString();
+        roleOption.countText.text = ToString2();
     }
 }

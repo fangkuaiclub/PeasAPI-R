@@ -1,17 +1,12 @@
 using System;
-using PeasAPI.Roles;
-using UnityEngine;
 
 namespace PeasAPI.Options;
 
 public class CustomNumberOption : CustomOption
 {
-    public CustomNumberOption(MultiMenu multiMenu, string optionName, float value,
-        float increment, float min, float max,
-        Func<object, string> format = null, CustomRoleOptionType customRoleOptionType = CustomRoleOptionType.None,
-        BaseRole baseRole = null)
-        : base(num++, multiMenu, optionName, CustomOptionType.Number, value, format, customRoleOptionType,
-            baseRole)
+    public CustomNumberOption(MultiMenu multiMenu, string optionName, float min, float max,
+          float increment, float value, Func<object, string> format = null)
+        : base(num++, multiMenu, optionName, CustomOptionType.Number, value, null, format)
     {
         Min = min;
         Max = max;
@@ -28,23 +23,19 @@ public class CustomNumberOption : CustomOption
 
     public void Increase()
     {
-        var increment = Increment > 5 && Input.GetKeyInt(KeyCode.LeftShift) ? 5 : Increment;
-
-        if (Value + increment >
+        if (Value + Increment >
             Max + 0.001f) // the slight increase is because of the stupid float rounding errors in the Giant speed
             Set(Min);
         else
-            Set(Value + increment);
+            Set(Value + Increment);
     }
 
     public void Decrease()
     {
-        var increment = Increment > 5 && Input.GetKeyInt(KeyCode.LeftShift) ? 5 : Increment;
-
-        if (Value - increment < Min - 0.001f) // added it here to in case I missed something else
+        if (Value - Increment < Min - 0.001f) // added it here to in case I missed something else
             Set(Max);
         else
-            Set(Value - increment);
+            Set(Value - Increment);
     }
 
     public override void OptionCreated()

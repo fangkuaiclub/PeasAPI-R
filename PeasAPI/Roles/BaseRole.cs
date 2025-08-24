@@ -240,7 +240,17 @@ namespace PeasAPI.Roles
         public virtual void OnTaskComplete(PlayerControl player, PlayerTask task)
         {
         }
-        
+
+        public int GetCount()
+        {
+            return Option?.GetCount() ?? Count;
+        }
+
+        public int GetChance()
+        {
+            return Option?.GetChance() ?? Chance;
+        }
+
         public BaseRole(BasePlugin plugin)
         {
             Id = RoleManager.GetRoleId();

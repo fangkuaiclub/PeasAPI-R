@@ -43,32 +43,26 @@ namespace PeasAPI.CustomRpc
                         writer.Write((bool)option.ValueObject);
                         break;
                     case CustomOptionType.Number:
-                    {
-                        switch (option.CustomRoleOptionType)
                         {
-                            case CustomRoleOptionType.None:
-                                switch ((option as CustomNumberOption).IntSafe)
-                                {
-                                    case true:
-                                        writer.WritePacked((int)(float)option.ValueObject);
-                                        break;
-                                    case false:
-                                        writer.Write((float)option.ValueObject);
-                                        break;
-                                }
+                            switch ((option as CustomNumberOption).IntSafe)
+                            {
+                                case true:
+                                    writer.WritePacked((int)(float)option.ValueObject);
+                                    break;
+                                case false:
+                                    writer.Write((float)option.ValueObject);
+                                    break;
+                            }
 
-                                break;
-                            case CustomRoleOptionType.Chance:
-                                writer.Write(Convert.ToInt32(option.ValueObject));
-                                option.BaseRole.Chance = Convert.ToInt32(option.ValueObject);
-                                break;
-                            case CustomRoleOptionType.Count:
-                                writer.Write(Convert.ToInt32(option.ValueObject));
-                                option.BaseRole.Count =
-                                    option.BaseRole.MaxCount = Convert.ToInt32(option.ValueObject);
-                                break;
                         }
-                    }
+                        break;
+                    case CustomOptionType.Role:
+                        {
+                            writer.WritePacked(Convert.ToInt32(option.ValueObject));
+                            option.BaseRole.Chance = Convert.ToInt32(option.ValueObject);
+                            writer.WritePacked(Convert.ToInt32(option.ValueObject2));
+                            option.BaseRole.Count = option.BaseRole.MaxCount = Convert.ToInt32(option.ValueObject2);
+                        }
                         break;
                     case CustomOptionType.String:
                         writer.WritePacked((int)option.ValueObject);
@@ -91,6 +85,7 @@ namespace PeasAPI.CustomRpc
                         option.ID == id); // Works but may need to change to gameObject.name check
                 var type = customOption?.Type;
                 object value = null;
+                object value2 = null;
 
                 switch (type)
                 {
@@ -109,12 +104,16 @@ namespace PeasAPI.CustomRpc
                         }
 
                         break;
+                    case CustomOptionType.Role:
+                        value = reader.ReadPackedInt32();
+                        value2 = reader.ReadPackedInt32();
+                        break;
                     case CustomOptionType.String:
                         value = reader.ReadPackedInt32();
                         break;
                 }
 
-                customOption?.Set(value, Notify: !AllOptions);
+                customOption?.Set(value, value2, Notify: !AllOptions);
 
                 if (LobbyInfoPane.Instance.LobbyViewSettingsPane.gameObject.activeSelf)
                 {

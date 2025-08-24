@@ -6,14 +6,7 @@ public enum CustomOptionType
     Toggle,
     Number,
     String,
-    Button
-}
-
-public enum CustomRoleOptionType
-{
-    Chance,
-    Count,
-    None
+    Role
 }
 
 public enum MultiMenu
