@@ -2,6 +2,14 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using PeasAPI.Roles;
+using Reactor.Utilities.Extensions;
+using TMPro;
+using UnityEngine;
+using UnityEngine.Events;
+using UnityEngine.UI;
+using UnityEngine.UIElements.UIR;
+using static UnityEngine.UI.Button;
+using Object = UnityEngine.Object;
 
 namespace PeasAPI.Options;
 
@@ -11,13 +19,14 @@ public class CustomRoleOption : CustomOption
 
     public CustomRoleOption(BaseRole baseRole, string prefix, CustomOption[] advancedOptions, MultiMenu menu = MultiMenu.NULL) : base(num++,
         menu == MultiMenu.NULL ? GetMultiMenu(baseRole) : menu,
-        Utility.ColorString(baseRole.Color, baseRole.Name), CustomOptionType.Role, baseRole.Chance, baseRole.Count, baseRole: baseRole, isRoleOption: true)
+        Utility.ColorString(baseRole.Color, baseRole.Name), CustomOptionType.Role, baseRole.Chance, baseRole.Count, baseRole: baseRole)
     {
         List<CustomOption> removedOptions = new List<CustomOption>();
         if (advancedOptions != null)
         {
             foreach (var option in advancedOptions)
             {
+                option.IsRoleOption = true;
                 if (option != null && CustomOption.AllOptions.Contains(option))
                 {
                     removedOptions.Add(option);
@@ -125,5 +134,6 @@ public class CustomRoleOption : CustomOption
         roleOption.roleMaxCount = (int)ValueObject2;
         roleOption.chanceText.text = ToString();
         roleOption.countText.text = ToString2();
+        roleOption.transform.GetChild(0).GetComponent<TextMeshPro>().alignment = TextAlignmentOptions.Left;
     }
 }

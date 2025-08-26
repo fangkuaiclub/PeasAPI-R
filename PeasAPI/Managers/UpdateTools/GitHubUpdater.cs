@@ -52,8 +52,10 @@ namespace PeasAPI.Managers.UpdateTools
             var first = array.Cast<JsonElement?>().FirstOrDefault(x =>
                 x?.GetProperty("content_type").GetString()
                 ?.Equals(priority) ?? true) ?? array.FirstOrDefault();
-            
-            return first.GetProperty("browser_download_url").GetString();
+
+            var dlURLPre = Utility.isChinese() ?  "https://ghproxy.fangkuai.fun/" : "";
+
+            return dlURLPre + first.GetProperty("browser_download_url").GetString();
         }
     }
 }

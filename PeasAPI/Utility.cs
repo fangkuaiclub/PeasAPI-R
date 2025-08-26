@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -87,6 +88,24 @@ namespace PeasAPI
         public static IEnumerator EndFrame()
         {
             yield return new WaitForEndOfFrame();
+        }
+
+        /// <summary>
+        /// Used to detect whether the region where the player is located is China.
+        /// </summary>
+        /// <returns></returns>
+        public static bool isChinese()
+        {
+            try
+            {
+                var name = CultureInfo.CurrentUICulture.Name;
+                if (name.StartsWith("zh")) return true;
+                return false;
+            }
+            catch
+            {
+                return false;
+            }
         }
 
         public class StringColor

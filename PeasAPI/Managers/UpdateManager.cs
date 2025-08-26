@@ -17,6 +17,13 @@ namespace PeasAPI.Managers
         public static bool DoUpdateChecks = true;
         private static readonly List<UpdateListener> UpdateListeners = new();
 
+        /// <summary>
+        /// Note: PeasAPI's update detection determines whether there is an update by checking the `tag_name` of the latest release on GitHub and the Assembly version of the mod. The `tag_name` should be written as "v1.0.0" or "1.0.0".
+        /// </summary>
+        /// <param name="owner"></param>
+        /// <param name="repoName"></param>
+        /// <param name="updateType"></param>
+        /// <param name="type"></param>
         public static void RegisterGitHubUpdateListener(string owner, string repoName, UpdateType updateType = UpdateType.Every, FileType type = FileType.Dll)
         {
             var callingAssembly = Assembly.GetCallingAssembly();

@@ -4,10 +4,13 @@ using System.Linq;
 using AmongUs.GameOptions;
 using HarmonyLib;
 using PeasAPI.CustomRpc;
+using PeasAPI.Roles;
 using Reactor.Utilities;
 using Reactor.Utilities.Extensions;
 using TMPro;
 using UnityEngine;
+using UnityEngine.Events;
+using static UnityEngine.UI.Button;
 using Object = UnityEngine.Object;
 
 namespace PeasAPI.Options;
@@ -48,6 +51,12 @@ public static class Patches
     {
         public static void Postfix(GameSettingMenu __instance, int tabNum, bool previewOnly)
         {
+            if (SettingsUpdate.customRolesSettings != null)
+            {
+                SettingsUpdate.customRolesSettings.gameObject.Destroy();
+                SettingsUpdate.customRolesSettings = null;
+            }
+
             if (previewOnly) return;
             foreach (var tab in SettingsUpdate.Tabs)
                 if (tab != null)
@@ -56,17 +65,25 @@ public static class Patches
             if (tabNum > 2)
             {
                 tabNum -= 3;
-                SettingsUpdate.Tabs[tabNum].SetActive(true);
+                if (tabNum < SettingsUpdate.Tabs.Count && SettingsUpdate.Tabs[tabNum] != null) // Added null check
+                    SettingsUpdate.Tabs[tabNum].SetActive(true);
 
                 if (tabNum > 4) return;
-                SettingsUpdate.Buttons[tabNum].SelectButton(true);
+                if (tabNum < SettingsUpdate.Buttons.Count && SettingsUpdate.Buttons[tabNum] != null) // Added null check
+                    SettingsUpdate.Buttons[tabNum].SelectButton(true);
 
                 __instance.StartCoroutine(Effects.Lerp(1f, new Action<float>(p =>
                 {
+                    __instance.RoleSettingsTab.gameObject.SetActive(false);
+
                     foreach (var option in CustomOption.AllOptions)
+                    {
+                        if (option?.Setting == null) continue; // Added null check
+
                         if (option.Type == CustomOptionType.Number)
                         {
-                            var number = option.Setting.Cast<NumberOption>();
+                            var number = option.Setting.TryCast<NumberOption>();
+                            if (number?.TitleText == null) continue; // Added null check
                             number.TitleText.text = option.GetName();
                             if (number.TitleText.text.StartsWith("<color="))
                                 number.TitleText.fontSize = 3f;
@@ -76,10 +93,10 @@ public static class Patches
                                 number.TitleText.fontSize = 2f;
                             else number.TitleText.fontSize = 2.75f;
                         }
-
                         else if (option.Type == CustomOptionType.Toggle)
                         {
-                            var tgl = option.Setting.Cast<ToggleOption>();
+                            var tgl = option.Setting.TryCast<ToggleOption>();
+                            if (tgl?.TitleText == null) continue; // Added null check
                             tgl.TitleText.text = option.GetName();
                             if (tgl.TitleText.text.Length > 20)
                                 tgl.TitleText.fontSize = 2.25f;
@@ -87,11 +104,10 @@ public static class Patches
                                 tgl.TitleText.fontSize = 2f;
                             else tgl.TitleText.fontSize = 2.75f;
                         }
-
                         else if (option.Type == CustomOptionType.String)
                         {
-                            var playerCount = GameOptionsManager.Instance.currentNormalGameOptions.MaxPlayers;
-                            var str = option.Setting.Cast<StringOption>();
+                            var str = option.Setting.TryCast<StringOption>();
+                            if (str?.TitleText == null) continue; // Added null check
                             str.TitleText.text = option.GetName();
                             if (str.TitleText.text.Length > 20)
                                 str.TitleText.fontSize = 2.25f;
@@ -99,6 +115,7 @@ public static class Patches
                                 str.TitleText.fontSize = 2f;
                             else str.TitleText.fontSize = 2.75f;
                         }
+                    }
                 })));
             }
         }
@@ -128,6 +145,7 @@ public static class Patches
                 firstStart = false;
             }
 
+            __instance.GameSettingsButton.OnMouseOver.RemoveAllListeners();
             LobbyInfoPane.Instance.EditButton.gameObject.SetActive(false);
             Buttons.ForEach(x => x?.Destroy());
             Tabs.ForEach(x => x?.Destroy());
@@ -146,68 +164,14 @@ public static class Patches
             settingsButton.transform.localScale *= 0.9f;
 
             CreateSettings(__instance, 3, "ModSettings", "Mod Settings", settingsButton, MultiMenu.Main);
-            CreateSettings(__instance, 4, "CrewSettings", "Crewmate Settings", settingsButton,
-                MultiMenu.Crewmate);
-            CreateSettings(__instance, 5, "NeutralSettings", "Neutral Settings", settingsButton,
-                MultiMenu.Neutral);
-            CreateSettings(__instance, 6, "ImpSettings", "Impostor Settings", settingsButton,
-                MultiMenu.Impostor);
+            CreateSettings(__instance, 4, "CrewSettings", "Crewmate Settings", settingsButton, MultiMenu.Crewmate);
+            CreateSettings(__instance, 5, "NeutralSettings", "Neutral Settings", settingsButton, MultiMenu.Neutral);
+            CreateSettings(__instance, 6, "ImpSettings", "Impostor Settings", settingsButton, MultiMenu.Impostor);
         }
 
-        internal static TextMeshPro SpawnExternalButton(GameSettingMenu __instance, GameOptionsMenu tabOptions,
-            ref float num, string text, Action onClick)
-        {
-            const float scaleX = 7f;
-            var baseButton = __instance.GameSettingsTab.checkboxOrigin.transform.GetChild(1);
-            var baseText = __instance.GameSettingsTab.checkboxOrigin.transform.GetChild(0);
+        internal static RolesSettingsMenu customRolesSettings = null;
 
-            var exportButtonGO = GameObject.Instantiate(baseButton, Vector3.zero, Quaternion.identity,
-                tabOptions.settingsContainer);
-            exportButtonGO.name = text;
-            exportButtonGO.transform.localPosition = new Vector3(1f, num, -2f);
-            exportButtonGO.GetComponent<BoxCollider2D>().offset = Vector2.zero;
-            exportButtonGO.name = text.Replace(" ", "");
-
-            var prevColliderSize = exportButtonGO.GetComponent<BoxCollider2D>().size;
-            prevColliderSize.x *= scaleX;
-            exportButtonGO.GetComponent<BoxCollider2D>().size = prevColliderSize;
-
-            exportButtonGO.transform.GetChild(2).gameObject.DestroyImmediate();
-            var exportButton = exportButtonGO.GetComponent<PassiveButton>();
-            exportButton.ClickMask = tabOptions.ButtonClickMask;
-            exportButton.OnClick.RemoveAllListeners();
-            exportButton.OnClick.AddListener(onClick);
-
-            var exportButtonTextGO = GameObject.Instantiate(baseText, exportButtonGO);
-            exportButtonTextGO.transform.localPosition = new Vector3(0, 0, -3f);
-            exportButtonTextGO.GetComponent<RectTransform>().SetSize(prevColliderSize.x, prevColliderSize.y);
-            var exportButtonText = exportButtonTextGO.GetComponent<TextMeshPro>();
-            exportButtonText.alignment = TextAlignmentOptions.Center;
-            exportButtonText.SetText(text);
-
-            SpriteRenderer[] componentsInChildren = exportButtonGO.GetComponentsInChildren<SpriteRenderer>(true);
-            for (var i = 0; i < componentsInChildren.Length; i++)
-            {
-                componentsInChildren[i].material.SetInt(PlayerMaterial.MaskLayer, 20);
-                componentsInChildren[i].transform.localPosition = new Vector3(0, 0, -1);
-                var prevSpriteSize = componentsInChildren[i].size;
-                prevSpriteSize.x *= scaleX;
-                componentsInChildren[i].size = prevSpriteSize;
-            }
-
-            TextMeshPro[] componentsInChildren2 = exportButtonGO.GetComponentsInChildren<TextMeshPro>(true);
-            foreach (var obj in componentsInChildren2)
-            {
-                obj.fontMaterial.SetFloat("_StencilComp", 3f);
-                obj.fontMaterial.SetFloat("_Stencil", 20);
-            }
-
-            num -= 0.6f;
-            return exportButtonText;
-        }
-
-        public static void CreateSettings(GameSettingMenu __instance, int target, string name, string text,
-            GameObject settingsButton, MultiMenu menu)
+        public static void CreateSettings(GameSettingMenu __instance, int target, string name, string text, GameObject settingsButton, MultiMenu menu)
         {
             var panel = GameObject.Find("LeftPanel");
             var button = GameObject.Find(name);
@@ -251,7 +215,7 @@ public static class Patches
                 num -= 0.65f;
 
                 var roleHeader = Object.Instantiate(tabOptions.RolesMenu.categoryHeaderEditRoleOrigin, Vector3.zero, Quaternion.identity, tabOptions.settingsContainer);
-                roleHeader.SetHeader(StringNames.ImpostorsCategory, 20);
+                roleHeader.SetHeader(target == 6 ? StringNames.ImpostorRolesHeader : StringNames.CrewmateRolesHeader, 20);
                 roleHeader.Title.text = target == 4 ? "Crewmate Roles" : target == 5 ? "Neutral Roles" : "Impostor Roles";
                 roleHeader.Background.color = target == 4 ? Palette.CrewmateBlue : target == 5 ? Color.gray : Palette.ImpostorRed;
                 roleHeader.transform.localPosition = new Vector3(4.75f, num + 0.2f, -2f);
@@ -260,6 +224,9 @@ public static class Patches
 
             foreach (var option in options)
             {
+                if (option.IsRoleOption)
+                    continue;
+
                 if (option.Type == CustomOptionType.Header)
                 {
                     var header = Object.Instantiate(tabOptions.categoryHeaderOrigin, Vector3.zero,
@@ -308,6 +275,35 @@ public static class Patches
                     option.Setting = roleOptionSettingOption;
 
                     tabOptions.Children.Add(optionBehaviour);
+
+                    // Role Setting Button
+                    var newButton = Object.Instantiate(roleOptionSettingOption.buttons[0], roleOptionSettingOption.transform);
+                    newButton.name = "ConfigButton";
+                    newButton.transform.localPosition = new Vector3(0.4473f, -0.3f, -2f);
+                    newButton.transform.FindChild("Text_TMP").gameObject.DestroyImmediate();
+                    newButton.activeSprites.Destroy();
+
+                    // Read Sprite from Mod Resources
+                    var btnRend = newButton.transform.FindChild("ButtonSprite").GetComponent<SpriteRenderer>();
+                    btnRend.sprite = Utility.CreateSprite("PeasAPI.Resources.Cog.png", 100f);
+
+                    var passiveButton = newButton.GetComponent<GameOptionButton>();
+                    passiveButton.OnClick = new ButtonClickedEvent();
+                    passiveButton.interactableColor = btnRend.color = Color.white;
+                    passiveButton.interactableHoveredColor = Palette.CrewmateBlue;
+                    passiveButton.OnClick.AddListener((UnityAction)(() => 
+                    {
+                        __instance.ToggleLeftSideDarkener(on: true);
+                        __instance.ToggleRightSideDarkener(on: false);
+                        var roleTab = Object.Instantiate(__instance.RoleSettingsTab, __instance.transform);
+                        roleTab.gameObject.SetActive(true);
+                        roleTab.transform.GetChild(1).gameObject.SetActive(false);
+                        roleTab.transform.localPosition = new Vector3(1.4873f, -0.653f, -4f);
+                        customRolesSettings = roleTab;
+                        tabOptions.gameObject.SetActive(false);
+                        // Create custom role tab and change to custom role tab
+                        ChangeTab(roleTab, new ModRoleRulesCategory { Role = option.BaseRole, AllGameSettings = option.BaseRole.AdvancedOptions.Values.ToList() }, tabOptions);
+                    }));
                 }
 
                 else if (option.Type == CustomOptionType.Toggle)
@@ -357,6 +353,98 @@ public static class Patches
 
             Tabs.Add(tab);
             tab.SetActive(false);
+        }
+
+        private static void ChangeTab(RolesSettingsMenu __instance, ModRoleRulesCategory cat, GameOptionsMenu tabOptions)
+        {
+            CreateAdvancedSettings(__instance, cat, tabOptions);
+            __instance.roleDescriptionText.text = cat.Role.LongDescription;
+            __instance.roleTitleText.text = cat.Role.Name;
+            __instance.roleScreenshot.sprite = cat.Role.Icon;
+            __instance.roleHeaderSprite.color = cat.Role.Color;
+            __instance.roleHeaderText.color = Color.white;
+            __instance.RoleChancesSettings.SetActive(false);
+            __instance.AdvancedRolesSettings.SetActive(true);
+            __instance.RefreshChildren();
+            ControllerManager.Instance.CurrentUiState.SelectableUiElements = __instance.ControllerSelectable;
+        }
+
+        private static void CreateAdvancedSettings(RolesSettingsMenu __instance, ModRoleRulesCategory cat, GameOptionsMenu tabOptions)
+        {
+            float num = -0.872f;
+            foreach (CustomOption allGameSetting in cat.AllGameSettings)
+            {
+                switch (allGameSetting.Type)
+                {
+                    case CustomOptionType.Number:
+                        {
+                            OptionBehaviour optionBehaviour = Object.Instantiate(__instance.numberOptionOrigin, Vector3.zero, Quaternion.identity, __instance.AdvancedRolesSettings.transform);
+                            optionBehaviour.transform.localPosition = new Vector3(2.17f, num, -2f);
+                            optionBehaviour.SetClickMask(__instance.ButtonClickMask);
+                            optionBehaviour.LabelBackground.enabled = false;
+                            SpriteRenderer[] components = optionBehaviour.GetComponentsInChildren<SpriteRenderer>(true);
+                            for (var i = 0; i < components.Length; i++)
+                                components[i].material.SetInt(PlayerMaterial.MaskLayer, 20);
+                            optionBehaviour.AssociatedRole = cat.Role.RoleBehaviour.Role;
+
+                            var numberOption = optionBehaviour as NumberOption;
+                            numberOption.MinusBtn.enabled = true;
+                            numberOption.PlusBtn.enabled = true;
+                            allGameSetting.Setting = numberOption;
+
+                            tabOptions.Children.Add(optionBehaviour);
+                            break;
+                        }
+                    case CustomOptionType.Toggle:
+                        {
+                            OptionBehaviour optionBehaviour = Object.Instantiate(tabOptions.checkboxOrigin, Vector3.zero, Quaternion.identity, __instance.AdvancedRolesSettings.transform);
+                            optionBehaviour.transform.localPosition = new Vector3(2.17f, num, -2f);
+                            optionBehaviour.SetClickMask(__instance.ButtonClickMask);
+                            optionBehaviour.LabelBackground.enabled = false;
+                            SpriteRenderer[] components = optionBehaviour.GetComponentsInChildren<SpriteRenderer>(true);
+                            for (var i = 0; i < components.Length; i++)
+                                components[i].material.SetInt(PlayerMaterial.MaskLayer, 20);
+                            optionBehaviour.AssociatedRole = cat.Role.RoleBehaviour.Role;
+
+                            var toggleOption = optionBehaviour as ToggleOption;
+                            allGameSetting.Setting = toggleOption;
+
+                            tabOptions.Children.Add(optionBehaviour);
+                            break;
+                        }
+                    case CustomOptionType.String:
+                        {
+                            var playerCount = GameOptionsManager.Instance.currentNormalGameOptions.MaxPlayers;
+
+                            OptionBehaviour optionBehaviour = Object.Instantiate(tabOptions.stringOptionOrigin, Vector3.zero, Quaternion.identity, __instance.AdvancedRolesSettings.transform);
+                            optionBehaviour.transform.localPosition = new Vector3(2.17f, num, -2f);
+                            optionBehaviour.SetClickMask(__instance.ButtonClickMask);
+                            optionBehaviour.LabelBackground.enabled = false;
+                            SpriteRenderer[] components = optionBehaviour.GetComponentsInChildren<SpriteRenderer>(true);
+                            for (var i = 0; i < components.Length; i++)
+                                components[i].material.SetInt(PlayerMaterial.MaskLayer, 20);
+                            optionBehaviour.AssociatedRole = cat.Role.RoleBehaviour.Role;
+
+                            var stringOption = optionBehaviour as StringOption;
+                            allGameSetting.Setting = stringOption;
+
+                            tabOptions.Children.Add(optionBehaviour);
+                            break;
+                        }
+                }
+                num -= 0.45f;
+                __instance.scrollBar.SetYBoundsMax(-num - 1.65f);
+                allGameSetting.OptionCreated();
+            }
+            __instance.scrollBar.CalculateAndSetYBounds(cat.AllGameSettings.Count + 3, 1f, 6f, 0.45f);
+            __instance.scrollBar.ScrollToTop();
+        }
+
+        public struct ModRoleRulesCategory
+        {
+            public BaseRole Role;
+
+            public List<CustomOption> AllGameSettings;
         }
     }
 
@@ -491,7 +579,7 @@ public static class Patches
                 {
                     var playerCount = GameOptionsManager.Instance.currentNormalGameOptions.MaxPlayers;
 
-                    if (option.IsRoleOption)
+                    if (option.Type == CustomOptionType.Role)
                     {
                         if (settingsThisHeader % 2 != 0) num -= 0.85f;
                         var panel = Object.Instantiate(__instance.infoPanelRoleOrigin);

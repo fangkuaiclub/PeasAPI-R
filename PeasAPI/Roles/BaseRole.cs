@@ -25,10 +25,16 @@ namespace PeasAPI.Roles
         /// The description of the Role. Will displayed at the intro
         /// </summary>
         public abstract string Description { get; }
-        
+
+        /// <summary>
+        /// More detailed role description, show in role settings
+        /// </summary>
         public abstract string LongDescription { get; }
 
-        public virtual Sprite Icon { get; } = Utility.CreateSprite("PeasAPI.Placeholder.png");
+        /// <summary>
+        /// Used to display images in role settings
+        /// </summary>
+        public virtual Sprite Icon { get; } = Utility.CreateSprite("PeasAPI.Resources.Placeholder.png");
         
         /// <summary>
         /// The description of the Role at the task list

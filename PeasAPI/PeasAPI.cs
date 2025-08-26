@@ -22,7 +22,7 @@ namespace PeasAPI
     public class PeasAPI : BasePlugin
     {
         public const string Id = "tk.peasplayer.amongus.api";
-        public const string VersionString = "1.9.1";
+        public const string VersionString = "1.9.2";
 
         public Harmony Harmony { get; } = new Harmony(Id);
 
@@ -74,7 +74,7 @@ namespace PeasAPI
                     ConfigFile.Bind("CustomServer", "Port", (ushort)22023).Value);
             }
 
-            UpdateManager.RegisterGitHubUpdateListener("Peasplayer", "PeasAPI");
+            UpdateManager.RegisterGitHubUpdateListener("fangkuaiclub", "PeasAPI-R");
 
             RegisterCustomRoleAttribute.Load();
             RegisterCustomGameModeAttribute.Load();
